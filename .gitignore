@@ -1,0 +1,13 @@
+# config files
+.ipynb_checkpoints/
+.vscode
+
+# outcomes
+*.npy
+*.jpg
+proces_multispectral_images/out/*
+*/__pycache__/*
+
+
+# imported code
+imageprocessing
