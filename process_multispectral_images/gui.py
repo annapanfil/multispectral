@@ -33,7 +33,7 @@ def show_components_interactive(img_aligned, img_type, img_no="0000"):
         fig, ax = plt.subplots(figsize=(30,24))
         plt.subplots_adjust(bottom=0.25)
 
-        im = ax.imshow(get_components_view(img, band_indices))
+        im = ax.imshow(get_components_view(img, band_indices), cmap='gray')
 
         ax.axis('off')
 
@@ -134,7 +134,14 @@ def show_components_interactive(img_aligned, img_type, img_no="0000"):
         im.set_data(pi_image)
         fig.canvas.draw_idle()
 
-    
+    def set_SR(label):
+        """Visualise simple ratio (SR) image."""
+
+        sr_image = img_aligned[:, :, CHANNEL_NAMES.index("NIR")] / img_aligned[:, :, CHANNEL_NAMES.index("R")]
+        sr_image = (sr_image - np.min(sr_image)) / (np.max(sr_image) - np.min(sr_image))
+        im.set_data(sr_image)
+        fig.canvas.draw_idle()
+
 
     fig, im = show_components_view(img_aligned, (2,1,0))
 
@@ -203,9 +210,12 @@ def show_components_interactive(img_aligned, img_type, img_no="0000"):
     ndwi_button = Button(ax_ndwi_button, 'RNDWI')
     ndwi_button.on_clicked(set_ndwi)
 
-    pi_button = Button(plt.axes([0.3, 0.05, 0.07, 0.04]), 'PI (NIR)/(NIR+R)')
+    pi_button = Button(plt.axes([0.3, 0.05, 0.07, 0.04]), 'PI NIR/(NIR+R)')
     pi_button.on_clicked(set_PI)
     
+    sr = Button(plt.axes([0.38, 0.05, 0.07, 0.04]), 'SR NIR/R')
+    sr.on_clicked(set_SR)
+
     plt.show()
 
 

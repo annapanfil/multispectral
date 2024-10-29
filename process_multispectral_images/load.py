@@ -46,8 +46,8 @@ def load_image_set(
     
     return img_capt, panel_capt
 
-def undistort(img_capt, panel_capt, display=False):
-    """ correct distortion and display
+def get_irradiance(img_capt, panel_capt, display=False):
+    """ get irradiance and image type and display
     @return reflectance or radiance
     """
     if panel_capt is not None:

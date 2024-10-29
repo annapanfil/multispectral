@@ -3,7 +3,9 @@
 import argparse
 import os
 
-from load import load_image_set, undistort, align
+import exiftool
+
+from load import load_image_set, get_irradiance, align
 from visualise import get_components_view, show_image, save_image, plot_all_channels, plot_one_channel
 from gui import show_components_interactive
 
@@ -48,8 +50,11 @@ if __name__ == "__main__":
     )
 
     print(f"Loaded {len(img_capt.images)} images.\nAligning images...")
-    img_type, irradiance_list = undistort(img_capt, panel_capt, display=True if args.verbose > 1 else False)
-    sharpened_stack, im_aligned = align(img_capt, img_type, irradiance_list, matrices_fn=f"./out/warp_matrices_{args.set_nr:04}.npy")
+    with exiftool.ExifToolHelper() as et:
+        altitude = et.get_tags(f"{args.image_dir}/{args.set_nr:04}SET/000/IMG_{args.image_nr:04}_1.tif", ["Composite:GPSAltitude"])[0]["Composite:GPSAltitude"]
+
+    img_type, irradiance_list = get_irradiance(img_capt, panel_capt, display=True if args.verbose > 1 else False)
+    sharpened_stack, im_aligned = align(img_capt, img_type, irradiance_list, matrices_fn=f"./out/warp_matrices_{altitude}.npy")
 
     # visualise
     figsize=(30,23) if RESOLUTION=="full" else (16,13)
