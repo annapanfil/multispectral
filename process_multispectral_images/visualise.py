@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import micasense.imageutils as imageutils
+CHANNEL_NAMES = ["B", "G", "R", "NIR", "RE"]
 
 
 def show_image(image, title="Image", figsize=(30,23), cmap='gray'):
@@ -22,37 +23,35 @@ def save_image(image, filename, bgr = False):
     print("Saved to " + filename)
 
 
-def get_components_view(img_aligned, img_type, band_indices=(2,1,0)):
-    """visualise aligned image
-    @param img_type type of image (reflectance or radiance)
-    @param band_indices channels to display (2,1,0) for RGB
-    """
+def get_components_view(img_aligned, band_indices, gamma=2):
+    """Visualise aligned image using the provided band indices and apply gamma correction."""
+    img = np.zeros_like(img_aligned, dtype=np.float32)
 
-    # # Create an empty normalized stack for viewing
-    # im_display = np.zeros((img_aligned.shape[0], img_aligned.shape[1], img_aligned.shape[2]), dtype=np.float32)
+    for i in range(0, img.shape[2]):
+        img[:,:,i] =  imageutils.normalize(img_aligned[:,:,i])
 
-    if img_type == 'reflectance' and band_indices == [2,1,0]: #rgb
-        # for reflectance images we maintain white-balance by applying the same display scaling to all bands
-        im_min = np.percentile(img_aligned[:,:,0:2].flatten(),  0.1)  # modify with these percentilse to adjust contrast
-        im_max = np.percentile(img_aligned[:,:,0:2].flatten(), 99.9)  # for many images, 0.5 and 99.5 are good values
-        for i in band_indices:
-            img_aligned[:,:,i] =  imageutils.normalize(img_aligned[:,:,i], im_min, im_max)
+    img = np.power(img, 1.0 / gamma)
+    return img[:, :, band_indices]
 
 
+def get_index_view(img_aligned, band1, band2):
+    """Visualise image using two provided band indices. Used for NDVI, NDWI and other indices."""
+    ndvi_image = (img_aligned[:, :, band1] - img_aligned[:, :, band2]) / (img_aligned[:, :, band1] + img_aligned[:, :, band2])
+    ndvi_image = (ndvi_image - np.min(ndvi_image)) / (np.max(ndvi_image) - np.min(ndvi_image))
+    return ndvi_image
 
-    elif img_type == 'radiance' or band_indices != [2, 1, 0]:
-        # for radiance images we do an auto white balance since we don't know the input light spectrum by
-        # stretching each display band histogram to it's own min and max
-        for i in band_indices:
-            img_aligned[:,:,i] =  imageutils.normalize(img_aligned[:,:,i])
 
-    im_visualised = img_aligned[:,:,band_indices]
+def get_SR_image(img_aligned):
+    """Get normalised simple ratio (SR) image."""
+    sr_image = img_aligned[:, :, CHANNEL_NAMES.index("NIR")] / img_aligned[:, :, CHANNEL_NAMES.index("R")]
+    sr_image = (sr_image - np.min(sr_image)) / (np.max(sr_image) - np.min(sr_image))
+    return sr_image
 
-    return im_visualised
-
-def get_ndvi(img):
-    return (img[:,:,3] - img[:,:,2]) / (img[:,:,3] + img[:,:,2])
-
+def get_PI_image(img_aligned):
+    """Get normalised plastic index (PI) image."""
+    pi_image = img_aligned[:, :, CHANNEL_NAMES.index("NIR")] / (img_aligned[:, :, CHANNEL_NAMES.index("NIR")] + img_aligned[:, :, CHANNEL_NAMES.index("R")])
+    pi_image = (pi_image - np.min(pi_image)) / (np.max(pi_image) - np.min(pi_image))
+    return pi_image
 
 
 def plot_one_channel(im_aligned, channel_nr=5, figsize=(30,23), out_fn=None, show=True):

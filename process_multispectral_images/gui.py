@@ -4,28 +4,10 @@ import micasense.imageutils as imageutils
 import cv2
 import numpy as np
 
-
-def get_components_view(img_aligned, band_indices, gamma=2):
-    """Visualise aligned image using the provided band indices and apply gamma correction."""
-    img = np.zeros_like(img_aligned, dtype=np.float32)
-
-    for i in range(0, img.shape[2]):
-        img[:,:,i] =  imageutils.normalize(img_aligned[:,:,i])
-
-    img = np.power(img, 1.0 / gamma)
-    return img[:, :, band_indices]
-
-
-def get_index_view(img_aligned, band1, band2):
-    """Visualise image using two provided band indices. Used for NDVI, NDWI and other indices."""
-    ndvi_image = (img_aligned[:, :, band1] - img_aligned[:, :, band2]) / (img_aligned[:, :, band1] + img_aligned[:, :, band2])
-    ndvi_image = (ndvi_image - np.min(ndvi_image)) / (np.max(ndvi_image) - np.min(ndvi_image))
-    return ndvi_image
-
+from visualise import get_components_view, get_index_view, get_SR_image, get_PI_image, CHANNEL_NAMES
 
 
 def show_components_interactive(img_aligned, img_type, img_no="0000"):
-    CHANNEL_NAMES = ["B", "G", "R", "NIR", "RE"]
 
     def show_components_view(img, band_indices):
 
@@ -128,17 +110,13 @@ def show_components_interactive(img_aligned, img_type, img_no="0000"):
 
     def set_PI(label):
         """Visualise plastic index (PI) image."""
-
-        pi_image = img_aligned[:, :, CHANNEL_NAMES.index("NIR")] / (img_aligned[:, :, CHANNEL_NAMES.index("NIR")] + img_aligned[:, :, CHANNEL_NAMES.index("R")])
-        pi_image = (pi_image - np.min(pi_image)) / (np.max(pi_image) - np.min(pi_image))
+        pi_image = get_PI_image(img_aligned)
         im.set_data(pi_image)
         fig.canvas.draw_idle()
 
     def set_SR(label):
         """Visualise simple ratio (SR) image."""
-
-        sr_image = img_aligned[:, :, CHANNEL_NAMES.index("NIR")] / img_aligned[:, :, CHANNEL_NAMES.index("R")]
-        sr_image = (sr_image - np.min(sr_image)) / (np.max(sr_image) - np.min(sr_image))
+        sr_image = get_SR_image(img_aligned)
         im.set_data(sr_image)
         fig.canvas.draw_idle()
 
