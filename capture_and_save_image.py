@@ -10,6 +10,8 @@ params = {
 }
 
 response = requests.get(url, params=params)
+print("captured image")
+print (response.json())
 
 response = response.json()
 capture_nr = response.get("raw_storage_path").get("1").split("/")[2] # for now ommiting 000 directory from '/files/0010SET/000/IMG_0001_5.tif'
@@ -23,6 +25,7 @@ for ch, path in response.get("raw_cache_path").items():
 
     photo_url = "http://192.168.10.254" + path
     response = requests.get(photo_url)
+    print("got image")
     
 
     output_file = os.path.join(output_dir, capture_nr, photo_nr)
