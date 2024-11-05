@@ -5,7 +5,7 @@
 # outcomes
 *.npy
 *.jpg
-proces_multispectral_images/out/*
+process_multispectral_images/out/*
 */__pycache__/*
 
 
