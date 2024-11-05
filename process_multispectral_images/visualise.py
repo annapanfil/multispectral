@@ -104,31 +104,3 @@ def plot_all_channels(im_aligned, out_fn=None, show=True):
 
     if show:
         plt.show()
-
-
-# def enhance_rgb(img, figsize=(30,23), out_fn=None, show=True):
-
-#     # Create an enhanced version of the RGB render using an unsharp mask
-#     gaussian_rgb = cv2.GaussianBlur(img, (9,9), 10.0)
-#     gaussian_rgb[gaussian_rgb<0] = 0
-#     gaussian_rgb[gaussian_rgb>1] = 1
-#     unsharp_rgb = cv2.addWeighted(img, 1.5, gaussian_rgb, -0.5, 0)
-#     unsharp_rgb[unsharp_rgb<0] = 0
-#     unsharp_rgb[unsharp_rgb>1] = 1
-
-#     # Apply a gamma correction to make the render appear closer to what our eyes would see
-#     gamma = 1.4
-#     gamma_corr_rgb = unsharp_rgb**(1.0/gamma)
-#     plt.figure(figsize=figsize)
-#     plt.imshow(gamma_corr_rgb, aspect='equal')
-#     plt.title("Corrected_rgb")
-#     plt.axis('off')
-
-#     if out_fn: 
-#         # plt.savefig(out_fn)
-#         gamma_corr_rgb = (gamma_corr_rgb * 255).astype(np.uint8)  # Scale to 0-255 for saving
-#         cv2.imwrite(out_fn, cv2.cvtColor(gamma_corr_rgb, cv2.COLOR_RGB2BGR))
-#         print("Saved to " + out_fn)
-
-#     if show:
-#         plt.show()
