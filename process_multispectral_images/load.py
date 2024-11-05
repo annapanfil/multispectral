@@ -1,3 +1,4 @@
+import os
 import sys
 import numpy as np
 from pathlib import Path
@@ -159,17 +160,32 @@ def align_iterative(capture, img_type):
 
     return im_aligned, warp_matrices
 
+def get_saved_matrices(warp_matrices_dir: str, altitude: int, allow_closest=False) -> np.array:
+    """Get saved matrices from warp_matrices_dir with the given altitude
+    @param allow_closest: if the matrices file is not found, get the closest one by the altitude.
+    @return: warp_matrices"""
+    fn = f"{warp_matrices_dir}/warp_matrices_{altitude}.npy"
 
-def align_from_saved_matrices(capture, img_type, warp_matrices_fn):
+    if Path(fn).is_file():
+        warp_matrices = np.load(fn, allow_pickle=True).astype(np.float32)
+        print(f"Warp matrices for altitude {altitude} successfully loaded.")
+    else:
+        if allow_closest:
+            available_altitudes = [int(x.split(".")[0].split("_")[2]) for x in os.listdir(warp_matrices_dir) if x.endswith(".npy")]
+            closest_altitude = min(available_altitudes, key=lambda x: abs(x - altitude))
+            print(f"No existing warp matrices found for altitude {altitude}. Using closest altitude {closest_altitude}.")
+            warp_matrices = get_saved_matrices(warp_matrices_dir, closest_altitude, allow_closest=False)
+        else:
+            raise FileNotFoundError(f"No existing warp matrices found in path {fn}")
+    
+    return warp_matrices
+
+
+def align_from_saved_matrices(capture, img_type: str, warp_matrices_dir: str, altitude: int, allow_closest=False):
     match_index = 5
     warp_mode = cv2.MOTION_HOMOGRAPHY
     
-    if Path(warp_matrices_fn).is_file():
-        warp_matrices = np.load(warp_matrices_fn, allow_pickle=True).astype(np.float32)
-        print("Warp matrices successfully loaded.")
-    else:
-        raise FileNotFoundError(f"No existing warp matrices found in path {warp_matrices_fn}")
-        
+    warp_matrices = get_saved_matrices(warp_matrices_dir, altitude, allow_closest=allow_closest)
     cropped_dimensions, edges = imageutils.find_crop_bounds(capture, warp_matrices, warp_mode=warp_mode, reference_band=match_index)
     im_aligned = imageutils.aligned_capture(capture, warp_matrices, warp_mode, cropped_dimensions, match_index, img_type=img_type)
 

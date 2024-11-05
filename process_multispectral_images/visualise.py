@@ -53,6 +53,20 @@ def get_PI_image(img_aligned):
     pi_image = (pi_image - np.min(pi_image)) / (np.max(pi_image) - np.min(pi_image))
     return pi_image
 
+def get_custom_index(formula, img_aligned):
+    try:
+        # Allow only specific variables and operators
+        allowed_vars = {"R": img_aligned[:, :, CHANNEL_NAMES.index("R")],
+                        "G": img_aligned[:, :, CHANNEL_NAMES.index("G")],
+                        "B": img_aligned[:, :, CHANNEL_NAMES.index("B")],
+                        "RE": img_aligned[:, :, CHANNEL_NAMES.index("RE")],
+                        "NIR": img_aligned[:, :, CHANNEL_NAMES.index("NIR")]}
+        index = eval(formula, {"__builtins__": None}, allowed_vars)
+        index = (index - np.min(index)) / (np.max(index) - np.min(index))
+        return index
+    except Exception as e:
+        print("Error in formula:", e)
+        return None
 
 def plot_one_channel(im_aligned, channel_nr=5, figsize=(30,23), out_fn=None, show=True):
 

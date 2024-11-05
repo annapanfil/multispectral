@@ -1,10 +1,11 @@
 from matplotlib import pyplot as plt
-from matplotlib.widgets import Button, CheckButtons, Slider
+from matplotlib.widgets import Button, CheckButtons, Slider, TextBox
 import micasense.imageutils as imageutils
 import cv2
 import numpy as np
+import pyperclip
 
-from visualise import get_components_view, get_index_view, get_SR_image, get_PI_image, CHANNEL_NAMES
+from visualise import get_components_view, get_index_view, get_SR_image, get_PI_image, CHANNEL_NAMES, get_custom_index
 
 
 def show_components_interactive(img_aligned, img_type, img_no="0000"):
@@ -96,13 +97,19 @@ def show_components_interactive(img_aligned, img_type, img_no="0000"):
         nonlocal color_type 
         color_type = "PI"
 
-    def set_SR(label):
-        """Visualise simple ratio (SR) image."""
-        sr_image = get_SR_image(img_aligned)
-        im.set_data(sr_image)
-        fig.canvas.draw_idle()
-        nonlocal color_type
-        color_type = "SR"
+    def submit_formula(text):
+        result = get_custom_index(text, img_aligned)
+        if result is not None:
+            im.set_data(result)
+            fig.canvas.draw_idle()
+            nonlocal color_type
+            color_type = text.replace("/", ":")
+
+    def on_key_press(event):
+        # Check if Ctrl+V (or Command+V on macOS) was pressed
+        if event.key == "ctrl+v" or event.key == "command + v":
+            clipboard_content = pyperclip.paste()
+            text_box.set_val(clipboard_content[:100])
 
 
     fig, im = show_components_view(img_aligned, (2,1,0))
@@ -161,20 +168,20 @@ def show_components_interactive(img_aligned, img_type, img_no="0000"):
     band2_slider.on_changed(update_index)
 
     # Add buttons for NDVI and NDWI
-    ax_ndvi_button = plt.axes([0.6, 0.1, 0.07, 0.04])
+    ax_ndvi_button = plt.axes([0.6, 0.1, 0.05, 0.042])
     ndvi_button = Button(ax_ndvi_button, 'NDVI')
     ndvi_button.on_clicked(set_ndvi)
 
-    ax_ndwi_button = plt.axes([0.68, 0.1, 0.07, 0.04])
+    ax_ndwi_button = plt.axes([0.652, 0.1, 0.05, 0.042])
     ndwi_button = Button(ax_ndwi_button, 'RNDWI')
     ndwi_button.on_clicked(set_ndwi)
 
-    pi_button = Button(plt.axes([0.3, 0.05, 0.07, 0.04]), 'PI NIR/(NIR+R)')
+    pi_button = Button(plt.axes([0.7, 0.1, 0.05, 0.042]), 'PI NIR/(NIR+R)')
     pi_button.on_clicked(set_PI)
-    
-    sr = Button(plt.axes([0.38, 0.05, 0.07, 0.04]), 'SR NIR/R')
-    sr.on_clicked(set_SR)
+
+    axbox = plt.axes([0.35, 0.05, 0.20, 0.04])
+    text_box = TextBox(axbox, "Enter formula: ", initial="(RE-B)/(RE+B) * (RE-G)/(RE+G)")
+    text_box.on_submit(submit_formula)
+    fig.canvas.mpl_connect("key_press_event", on_key_press) # for pasting
 
     plt.show()
-
-
