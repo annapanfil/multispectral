@@ -18,7 +18,7 @@ def find_images(image_path, image_number, panel=False):
    
     if len(image_names) == 0:
         photo_type = "Images" if not panel else "Panel images"
-        raise FileNotFoundError(f"{photo_type} not found in path {image_path}IMG_{image_number}_*.tif")
+        raise FileNotFoundError(f"{photo_type} not found in path {image_path}/IMG_{image_number}_*.tif")
 
     return image_names
 
@@ -76,21 +76,8 @@ def get_irradiance(img_capt, panel_capt, display=False):
 
     return img_type, irradiance_list
 
-
-def align_fast(capt, img_type):
-    """ align using rig relatives """
-    reference_band = 5
-    warp_mode = cv2.MOTION_HOMOGRAPHY
-    warp_matrices = capt.get_warp_matrices(ref_index=reference_band)
-
-    cropped_dimensions, edges = imageutils.find_crop_bounds(capt,warp_matrices,reference_band=reference_band)
-    im_aligned = imageutils.aligned_capture(
-        capt, warp_matrices, warp_mode, cropped_dimensions, reference_band, img_type=img_type)
-
-    return im_aligned
-
 def save_warp_matrices(warp_matrices, fn="./out/warp_matrices_SIFT.npy"):
-    np.save(fn, np.array(warp_matrices, dtype=object), allow_pickle=True)
+    np.save(fn, np.array(warp_matrices), allow_pickle=True)
     print("Saved to", Path(fn).resolve())
    
 def read_warp_matrices(fn="./out/warp_matrices_SIFT.npy"):
@@ -107,7 +94,19 @@ def read_warp_matrices(fn="./out/warp_matrices_SIFT.npy"):
 
     return warp_matrices
 
-def align(capture, img_type, irradiance_list, matrices_fn="out/warp_matrices_SIFT.npy", verbose=0):
+def align_rig_relatives(capt, img_type):
+    """ align using rig relatives """
+    reference_band = 5
+    warp_mode = cv2.MOTION_HOMOGRAPHY
+    warp_matrices = capt.get_warp_matrices(ref_index=reference_band)
+
+    cropped_dimensions, edges = imageutils.find_crop_bounds(capt,warp_matrices,reference_band=reference_band)
+    im_aligned = imageutils.aligned_capture(
+        capt, warp_matrices, warp_mode, cropped_dimensions, reference_band, img_type=img_type)
+
+    return im_aligned
+
+def align_SIFT(capture, img_type, irradiance_list, matrices_fn="out/warp_matrices_SIFT.npy", verbose=0):
     """
     Align and sharpen multispectral images using SIFT algorithm.
 
@@ -138,3 +137,40 @@ def align(capture, img_type, irradiance_list, matrices_fn="out/warp_matrices_SIF
         img_type=img_type)
     
     return sharpened_stack, im_aligned
+
+
+def align_iterative(capture, img_type):
+    match_index = 5 # Index of the band 
+    max_alignment_iterations = 20
+    warp_mode = cv2.MOTION_HOMOGRAPHY # MOTION_HOMOGRAPHY or MOTION_AFFINE. For Altum images only use HOMOGRAPHY
+    pyramid_levels = 1 # for images with RigRelatives, setting this to 0 or 1 may improve alignment
+
+    print("Aligning images. Depending on settings this can take from a few seconds to many minutes")
+    # Can potentially increase max_iterations for better results, but longer runtimes
+    warp_matrices, alignment_pairs = imageutils.align_capture(capture,
+                                                            ref_index = match_index,
+                                                            max_iterations = max_alignment_iterations,
+                                                            warp_mode = warp_mode,
+                                                            pyramid_levels = pyramid_levels)
+    
+    cropped_dimensions, edges = imageutils.find_crop_bounds(capture, warp_matrices, warp_mode=warp_mode, reference_band=match_index)
+    print(cropped_dimensions)
+    im_aligned = imageutils.aligned_capture(capture, warp_matrices, warp_mode, cropped_dimensions, match_index, img_type=img_type)
+
+    return im_aligned, warp_matrices
+
+
+def align_from_saved_matrices(capture, img_type, warp_matrices_fn):
+    match_index = 5
+    warp_mode = cv2.MOTION_HOMOGRAPHY
+    
+    if Path(warp_matrices_fn).is_file():
+        warp_matrices = np.load(warp_matrices_fn, allow_pickle=True).astype(np.float32)
+        print("Warp matrices successfully loaded.")
+    else:
+        raise FileNotFoundError(f"No existing warp matrices found in path {warp_matrices_fn}")
+        
+    cropped_dimensions, edges = imageutils.find_crop_bounds(capture, warp_matrices, warp_mode=warp_mode, reference_band=match_index)
+    im_aligned = imageutils.aligned_capture(capture, warp_matrices, warp_mode, cropped_dimensions, match_index, img_type=img_type)
+
+    return im_aligned
