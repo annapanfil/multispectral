@@ -5,7 +5,7 @@ import os
 
 import exiftool
 
-from load import load_image_set, get_irradiance, align
+from load import load_image_set, get_irradiance, align_SIFT, align_from_saved_matrices
 from visualise import get_components_view, show_image, save_image, plot_all_channels, plot_one_channel
 from gui import show_components_interactive
 
@@ -18,10 +18,22 @@ def get_args():
     parser.add_argument('--panel_image_nr', '-p', type=int, required=False, help='Panel (QR code) image number')
     parser.add_argument('--output_dir', '-o', type=str, required=False, help='Output folder, if not specified, only displaying')
     parser.add_argument('--verbose', '-v', type=int, required=False, help="If to show photos in the middle of the process (0-dont show anything, 1-show only composites, 2-show everything)", default=1)
+    parser.add_argument('--altitude', '-a', type=float, required=False, help="Altitude from which the photo was taken")
 
     args = parser.parse_args()
     if args.panel_image_nr is not None:
         args.panel_image_nr = f"{args.panel_image_nr:04}"
+
+    with exiftool.ExifToolHelper() as et:
+        altitude = et.get_tags(f"{args.image_dir}/{args.set_nr:04}SET/000/IMG_{args.image_nr:04}_1.tif", ["Composite:GPSAltitude"])[0]["Composite:GPSAltitude"]
+
+    # get the altitude from the known images if not specified
+    if args.altitude is None:
+        differences = {35: 45, 36: 50, 41: 35, 45: 59, 46: 55}
+        if args.set_nr not in differences.keys():
+            raise LookupError(f"Not known altitude difference for set {args.set_nr}. You must specify the altitude or set the difference in the code.")
+    
+        args.altitude = altitude - differences[args.set_nr]
 
     # Create output directory if specified
     output = args.output_dir
@@ -49,26 +61,24 @@ if __name__ == "__main__":
         args.panel_image_nr
     )
 
-    print(f"Loaded {len(img_capt.images)} images.\nAligning images...")
-    with exiftool.ExifToolHelper() as et:
-        altitude = et.get_tags(f"{args.image_dir}/{args.set_nr:04}SET/000/IMG_{args.image_nr:04}_1.tif", ["Composite:GPSAltitude"])[0]["Composite:GPSAltitude"]
+    print(f"Loaded {len(img_capt.images)} images. With altitude {args.altitude}\nAligning images...")
 
     img_type, irradiance_list = get_irradiance(img_capt, panel_capt, display=True if args.verbose > 1 else False)
-    sharpened_stack, im_aligned = align(img_capt, img_type, irradiance_list, matrices_fn=f"./out/warp_matrices_{altitude}.npy")
+    im_aligned = align_from_saved_matrices(img_capt, img_type, f"/home/anna/code/process_multispectral_images/out/warp_matrices_reference/warp_matrices_{args.altitude}.npy")
 
     # visualise
     figsize=(30,23) if RESOLUTION=="full" else (16,13)
     
 
-    show_components_interactive(sharpened_stack, img_type, img_no=f"{args.image_nr:04}")
+    show_components_interactive(im_aligned, img_type, img_no=f"{args.image_nr:04}")
 
     # plot_all_channels(im_aligned,
     #                   out_fn=f"{out_fn}_all_channels.jpg" if out_fn else None,
     #                   show=(args.verbose > 1)
     #                   )
 
-    rgb_image = get_components_view(im_aligned, img_type, band_indices=(2,1,0))
-    if args.verbose > 1: show_image(rgb_image, "RGB composite", figsize)
-    if out_fn: save_image(rgb_image, f"{out_fn}_RGB.jpg", bgr=True)
+    # rgb_image = get_components_view(im_aligned, band_indices=(2,1,0))
+    # if args.verbose > 1: show_image(rgb_image, "RGB composite", figsize)
+    # if out_fn: save_image(rgb_image, f"{out_fn}_RGB.jpg", bgr=True)
 
     # cir_image =  show_components(im_aligned, img_type, band_indices=(3,2,1))

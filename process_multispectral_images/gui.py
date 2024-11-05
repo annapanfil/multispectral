@@ -8,7 +8,6 @@ from visualise import get_components_view, get_index_view, get_SR_image, get_PI_
 
 
 def show_components_interactive(img_aligned, img_type, img_no="0000"):
-
     def show_components_view(img, band_indices):
 
         """Visualise aligned image using the provided band indices."""
@@ -36,6 +35,9 @@ def show_components_interactive(img_aligned, img_type, img_no="0000"):
         green_slider.valtext.set_text(CHANNEL_NAMES[int(green_slider.val)])
         blue_slider.valtext.set_text(CHANNEL_NAMES[int(blue_slider.val)])
 
+        nonlocal color_type
+        color_type = f"{red_slider.valtext.get_text()}_{green_slider.valtext.get_text()}_{blue_slider.valtext.get_text()}"
+
     def update_index(val):
         """Update the displayed image based on slider values."""
         im.set_data(get_index_view(img_aligned,  int(band1_slider.val), int(band2_slider.val)))
@@ -45,45 +47,15 @@ def show_components_interactive(img_aligned, img_type, img_no="0000"):
         band1_slider.valtext.set_text(CHANNEL_NAMES[band1_slider.val])
         band2_slider.valtext.set_text(CHANNEL_NAMES[band2_slider.val])
 
-
-    def toggle_ndvi(label):
-        """Callback function for the NDVI checkbox."""
-        if ndvi_checkbox.get_status()[0]:  # If NDVI is checked
-            # Block the sliders
-            red_slider.set_active(False)
-            green_slider.set_active(False)
-            blue_slider.set_active(False)
-
-            band1_slider.set_active(True)
-            band2_slider.set_active(True)
-            
-            im.set_data(get_index_view(img_aligned,  int(band1_slider.val), int(band2_slider.val)))
-            fig.canvas.draw_idle()
-
-        else:
-            # Unblock the sliders
-            red_slider.set_active(True)
-            green_slider.set_active(True)
-            blue_slider.set_active(True)
-
-            band1_slider.set_active(False)
-            band2_slider.set_active(False)
-
-            # Restore RGB display
-            update_rgb(None)
+        nonlocal color_type
+        color_type = f"index_{band1_slider.valtext.get_text()}_{band2_slider.valtext.get_text()}"
     
     def save_button_callback(event):
         """Callback function for saving the current displayed image."""
-        
-        if ndvi_checkbox.get_status()[0]:
-            color_type="nvdi"
-        else:
-            color_type = f"{red_slider.valtext.get_text()}_{green_slider.valtext.get_text()}_{blue_slider.valtext.get_text()}"
-
         filename = f"out/{img_no}_{color_type}.jpg"
 
         current_img = im.get_array()
-        plt.imsave(filename, current_img)
+        plt.imsave(filename, current_img, cmap="gray")
 
         message_text.set_text(f"Saved as {filename}")
         print(f"image saved as {filename}")
@@ -94,34 +66,47 @@ def show_components_interactive(img_aligned, img_type, img_no="0000"):
         red_slider.set_val(2)
         green_slider.set_val(1)
         blue_slider.set_val(0)
+        nonlocal color_type 
+        color_type = "RGB"
 
     def set_cir(event):
         red_slider.set_val(3)
         green_slider.set_val(2)
-        blue_slider.set_val(1)
+        nonlocal color_type 
+        color_type = "CIR"
 
     def set_ndvi(event):
         band1_slider.set_val(CHANNEL_NAMES.index("NIR"))
         band2_slider.set_val(CHANNEL_NAMES.index("R"))
+        nonlocal color_type 
+        color_type = "NDVI"
+
     
     def set_ndwi(event):
         band1_slider.set_val(CHANNEL_NAMES.index("NIR"))
         band2_slider.set_val(CHANNEL_NAMES.index("G"))
+        nonlocal color_type 
+        color_type = "RNDWI"
 
     def set_PI(label):
         """Visualise plastic index (PI) image."""
         pi_image = get_PI_image(img_aligned)
         im.set_data(pi_image)
         fig.canvas.draw_idle()
+        nonlocal color_type 
+        color_type = "PI"
 
     def set_SR(label):
         """Visualise simple ratio (SR) image."""
         sr_image = get_SR_image(img_aligned)
         im.set_data(sr_image)
         fig.canvas.draw_idle()
+        nonlocal color_type
+        color_type = "SR"
 
 
     fig, im = show_components_view(img_aligned, (2,1,0))
+    color_type = "RGB"
 
     # Create the axis for sliders
     axcolor = 'lightgoldenrodyellow'
@@ -160,12 +145,8 @@ def show_components_interactive(img_aligned, img_type, img_no="0000"):
     cir_button = Button(ax_cir_button, 'CIR')
     cir_button.on_clicked(set_cir)
 
-    # CHECKBOX for Index calculations
-    ax_checkbox = plt.axes([0.3, 0.14, 0.1, 0.02])
-    ndvi_checkbox = CheckButtons(ax_checkbox, ['Index'], [False])
-    ndvi_checkbox.on_clicked(toggle_ndvi)
-
-    message_index_formula = plt.text(0.41, 0.15, "(band1 - band2) / (band1 + band2)", fontsize=12, ha='left', va='center', transform=plt.gcf().transFigure, color="black")
+    # INDEX sliders
+    message_index_formula = plt.text(0.3, 0.15, "Index formula: (band1 - band2) / (band1 + band2)", fontsize=12, ha='left', va='center', transform=plt.gcf().transFigure, color="black")
 
     ax_band1 = plt.axes([0.3, 0.12, 0.25, 0.02], facecolor=axcolor)  # l, b, w,h
     ax_band2 = plt.axes([0.3, 0.10, 0.25, 0.02], facecolor=axcolor)
