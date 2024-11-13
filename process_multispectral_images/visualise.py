@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import micasense.imageutils as imageutils
+
+CHANNELS = {'B': 0, 'G': 1, 'R': 2, 'NIR': 3, 'RE': 4}
 CHANNEL_NAMES = ["B", "G", "R", "NIR", "RE"]
 
 
@@ -34,8 +36,12 @@ def get_components_view(img_aligned, band_indices, gamma=2):
     return img[:, :, band_indices]
 
 
-def get_index_view(img_aligned, band1, band2):
-    """Visualise image using two provided band indices. Used for NDVI, NDWI and other indices."""
+def get_index_view(img_aligned, band1, band2, normalize=True):
+    """Visualise image using two provided band indices. Used for NDVI, NDWI and other similar indices with a formula: (band1 - band2) / (band1 + band2)"""
+    if normalize:
+        for i in [band1, band2]:
+            img_aligned[:,:,i] =  imageutils.normalize(img_aligned[:,:,i])
+
     ndvi_image = (img_aligned[:, :, band1] - img_aligned[:, :, band2]) / (img_aligned[:, :, band1] + img_aligned[:, :, band2])
     ndvi_image = (ndvi_image - np.min(ndvi_image)) / (np.max(ndvi_image) - np.min(ndvi_image))
     return ndvi_image
@@ -43,24 +49,30 @@ def get_index_view(img_aligned, band1, band2):
 
 def get_SR_image(img_aligned):
     """Get normalised simple ratio (SR) image."""
-    sr_image = img_aligned[:, :, CHANNEL_NAMES.index("NIR")] / img_aligned[:, :, CHANNEL_NAMES.index("R")]
+    sr_image = img_aligned[:, :, CHANNELS["NIR"]] / img_aligned[:, :, CHANNELS["R"]]
     sr_image = (sr_image - np.min(sr_image)) / (np.max(sr_image) - np.min(sr_image))
     return sr_image
 
 def get_PI_image(img_aligned):
     """Get normalised plastic index (PI) image."""
-    pi_image = img_aligned[:, :, CHANNEL_NAMES.index("NIR")] / (img_aligned[:, :, CHANNEL_NAMES.index("NIR")] + img_aligned[:, :, CHANNEL_NAMES.index("R")])
+    pi_image = img_aligned[:, :, CHANNELS["NIR"]] / (img_aligned[:, :, CHANNELS["NIR"]] + img_aligned[:, :, CHANNELS["R"]])
     pi_image = (pi_image - np.min(pi_image)) / (np.max(pi_image) - np.min(pi_image))
     return pi_image
 
-def get_custom_index(formula, img_aligned):
+def get_custom_index(formula: str, img_aligned: np.array, normalize=True) -> np.array:
+    """Get a custom index from an image using your formula."""
+
+    if normalize:
+        for i in range(img_aligned.shape[2]):
+            img_aligned[:,:,i] =  imageutils.normalize(img_aligned[:,:,i])
+
     try:
         # Allow only specific variables and operators
-        allowed_vars = {"R": img_aligned[:, :, CHANNEL_NAMES.index("R")],
-                        "G": img_aligned[:, :, CHANNEL_NAMES.index("G")],
-                        "B": img_aligned[:, :, CHANNEL_NAMES.index("B")],
-                        "RE": img_aligned[:, :, CHANNEL_NAMES.index("RE")],
-                        "NIR": img_aligned[:, :, CHANNEL_NAMES.index("NIR")]}
+        allowed_vars = {"R": img_aligned[:, :, CHANNELS["R"]],
+                        "G": img_aligned[:, :, CHANNELS["G"]],
+                        "B": img_aligned[:, :, CHANNELS["B"]],
+                        "RE": img_aligned[:, :, CHANNELS["RE"]],
+                        "NIR": img_aligned[:, :, CHANNELS["NIR"]]}
         index = eval(formula, {"__builtins__": None}, allowed_vars)
         index = (index - np.min(index)) / (np.max(index) - np.min(index))
         return index
@@ -68,7 +80,8 @@ def get_custom_index(formula, img_aligned):
         print("Error in formula:", e)
         return None
 
-def plot_one_channel(im_aligned, channel_nr=5, figsize=(30,23), out_fn=None, show=True):
+def plot_one_channel(im_aligned, channel_nr=5):
+    """Plot a single normalised channel from the aligned image."""
 
     im_channel = im_aligned[:, :, channel_nr]
     
@@ -81,21 +94,19 @@ def plot_one_channel(im_aligned, channel_nr=5, figsize=(30,23), out_fn=None, sho
     else:
         normalized_channel = np.zeros(im_channel.shape)  # If all values are the same
 
-    if show: show_image(normalized_channel, f"channel {channel_nr}", figsize, cmap="inferno")
-    if out_fn: save_image(normalized_channel, out_fn)
-
     return normalized_channel
         
 
 def plot_all_channels(im_aligned, out_fn=None, show=True):
+    """Plot all normalised channels from the aligned image in subplots."""
     plt.subplots(3, 2, figsize=(16, 18))
 
     for channel in range(im_aligned.shape[2]):
-        normalized_channel = plot_one_channel(im_aligned, channel, out_fn=None, show=False)
+        normalized_channel = plot_one_channel(im_aligned, channel)
         
         plt.subplot(3, 2, channel+1)
         plt.axis('off') 
-        plt.imshow(normalized_channel, cmap="inferno")
+        plt.imshow(normalized_channel, cmap="gray")
         plt.title(f"channel {channel}")
 
     if out_fn:

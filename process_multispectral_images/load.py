@@ -81,7 +81,8 @@ def save_warp_matrices(warp_matrices, fn="./out/warp_matrices_SIFT.npy"):
     np.save(fn, np.array(warp_matrices), allow_pickle=True)
     print("Saved to", Path(fn).resolve())
    
-def read_warp_matrices(fn="./out/warp_matrices_SIFT.npy"):
+def read_warp_matrices_for_SIFT(fn="./out/warp_matrices_SIFT.npy"):
+    """Read warp matrices and transform them into ProjectiveTransform objects"""
     if Path(fn).is_file():
         load_warp_matrices = np.load(fn, allow_pickle=True)
         warp_matrices = []
@@ -93,6 +94,27 @@ def read_warp_matrices(fn="./out/warp_matrices_SIFT.npy"):
         print(f"No existing warp matrices found in path {fn}")
         warp_matrices = False
 
+    return warp_matrices
+
+
+def get_saved_matrices(warp_matrices_dir: str, altitude: int, allow_closest=False) -> np.array:
+    """Get saved matrices from warp_matrices_dir with the given altitude
+    @param allow_closest: if the matrices file is not found, get the closest one by the altitude.
+    @return: warp_matrices"""
+    fn = f"{warp_matrices_dir}/warp_matrices_{altitude}.npy"
+
+    if Path(fn).is_file():
+        warp_matrices = np.load(fn, allow_pickle=True).astype(np.float32)
+        print(f"Warp matrices for altitude {altitude} successfully loaded.")
+    else:
+        if allow_closest:
+            available_altitudes = [int(x.split(".")[0].split("_")[2]) for x in os.listdir(warp_matrices_dir) if x.endswith(".npy")]
+            closest_altitude = min(available_altitudes, key=lambda x: abs(x - altitude))
+            print(f"No existing warp matrices found for altitude {altitude}. Using closest altitude {closest_altitude}.")
+            warp_matrices = get_saved_matrices(warp_matrices_dir, closest_altitude, allow_closest=False)
+        else:
+            raise FileNotFoundError(f"No existing warp matrices found in path {fn}")
+    
     return warp_matrices
 
 def align_rig_relatives(capt, img_type):
@@ -121,7 +143,7 @@ def align_SIFT(capture, img_type, irradiance_list, matrices_fn="out/warp_matrice
     @return sharpened_stack (numpy.ndarray): The radiometrically pan-sharpened and aligned image stack.
     @return im_aligned (list): List of aligned images before pan-sharpening.
     """
-    warp_matrices = read_warp_matrices(matrices_fn)
+    warp_matrices = read_warp_matrices_for_SIFT(matrices_fn)
     if warp_matrices is False:
         warp_matrices = capture.SIFT_align_capture(
             min_matches = 0,
@@ -159,26 +181,6 @@ def align_iterative(capture, img_type):
     im_aligned = imageutils.aligned_capture(capture, warp_matrices, warp_mode, cropped_dimensions, match_index, img_type=img_type)
 
     return im_aligned, warp_matrices
-
-def get_saved_matrices(warp_matrices_dir: str, altitude: int, allow_closest=False) -> np.array:
-    """Get saved matrices from warp_matrices_dir with the given altitude
-    @param allow_closest: if the matrices file is not found, get the closest one by the altitude.
-    @return: warp_matrices"""
-    fn = f"{warp_matrices_dir}/warp_matrices_{altitude}.npy"
-
-    if Path(fn).is_file():
-        warp_matrices = np.load(fn, allow_pickle=True).astype(np.float32)
-        print(f"Warp matrices for altitude {altitude} successfully loaded.")
-    else:
-        if allow_closest:
-            available_altitudes = [int(x.split(".")[0].split("_")[2]) for x in os.listdir(warp_matrices_dir) if x.endswith(".npy")]
-            closest_altitude = min(available_altitudes, key=lambda x: abs(x - altitude))
-            print(f"No existing warp matrices found for altitude {altitude}. Using closest altitude {closest_altitude}.")
-            warp_matrices = get_saved_matrices(warp_matrices_dir, closest_altitude, allow_closest=False)
-        else:
-            raise FileNotFoundError(f"No existing warp matrices found in path {fn}")
-    
-    return warp_matrices
 
 
 def align_from_saved_matrices(capture, img_type: str, warp_matrices_dir: str, altitude: int, allow_closest=False):

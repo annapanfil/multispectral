@@ -65,4 +65,4 @@ if __name__ == "__main__":
     img_type, irradiance_list = get_irradiance(img_capt, panel_capt)
     im_aligned = align_from_saved_matrices(img_capt, img_type, "/home/anna/code/process_multispectral_images/out/warp_matrices_reference/", args.altitude, True)
 
-    show_components_interactive(im_aligned, img_type, img_no=f"{args.image_nr:04}")
+    show_components_interactive(im_aligned, img_no=f"{args.image_nr:04}")
