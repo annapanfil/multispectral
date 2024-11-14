@@ -36,11 +36,10 @@ def get_components_view(img_aligned, band_indices, gamma=2):
     return img[:, :, band_indices]
 
 
-def get_index_view(img_aligned, band1, band2, normalize=True):
+def get_index_view(img_aligned, band1, band2):
     """Visualise image using two provided band indices. Used for NDVI, NDWI and other similar indices with a formula: (band1 - band2) / (band1 + band2)"""
-    if normalize:
-        for i in [band1, band2]:
-            img_aligned[:,:,i] =  imageutils.normalize(img_aligned[:,:,i])
+    for i in [band1, band2]:
+        img_aligned[:,:,i] =  imageutils.normalize(img_aligned[:,:,i])
 
     ndvi_image = (img_aligned[:, :, band1] - img_aligned[:, :, band2]) / (img_aligned[:, :, band1] + img_aligned[:, :, band2])
     ndvi_image = (ndvi_image - np.min(ndvi_image)) / (np.max(ndvi_image) - np.min(ndvi_image))
@@ -59,12 +58,11 @@ def get_PI_image(img_aligned):
     pi_image = (pi_image - np.min(pi_image)) / (np.max(pi_image) - np.min(pi_image))
     return pi_image
 
-def get_custom_index(formula: str, img_aligned: np.array, normalize=True) -> np.array:
+def get_custom_index(formula: str, img_aligned: np.array) -> np.array:
     """Get a custom index from an image using your formula."""
 
-    if normalize:
-        for i in range(img_aligned.shape[2]):
-            img_aligned[:,:,i] =  imageutils.normalize(img_aligned[:,:,i])
+    for i in range(img_aligned.shape[2]):
+        img_aligned[:,:,i] =  imageutils.normalize(img_aligned[:,:,i])
 
     try:
         # Allow only specific variables and operators

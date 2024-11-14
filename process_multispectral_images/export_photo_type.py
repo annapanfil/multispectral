@@ -16,7 +16,7 @@ def threshold_percentiles(image):
     return image
 
 
-@hydra.main(config_path="conf", config_name="config_net_10", version_base=None)
+@hydra.main(config_path="conf", config_name="config_net_12", version_base=None)
 def main(cfg):
     # setup environment
     image_numbers = [f"{x:04}" for x in cfg.params.image_numbers]
@@ -50,30 +50,17 @@ def main(cfg):
         # save views
         filename = Path(cfg.paths.output, f"{image_nr}_{altitude}")
 
-        NDWI_image = get_index_view(im_aligned, CHANNELS["NIR"], CHANNELS["G"], normalize=False)
-        NDWI_image = threshold_percentiles(NDWI_image)
-        save_image(NDWI_image, f"{filename}_RNDWI_thresh.png")
-
-        mulRE_image = get_custom_index("1-((RE-G)/(RE+G) * (RE-B)/(RE+B))", im_aligned, normalize=False)
-        mulRE_image = threshold_percentiles(mulRE_image)
-        save_image(mulRE_image, f"{filename}_mulRE_thresh.png")
-
-        meanRE_image = get_custom_index("0.5 * (RE-G)/(RE+G) + 0.5 * (RE-B)/(RE+B)", im_aligned, normalize=False)
-        meanRE_image = threshold_percentiles(meanRE_image)
-        save_image(meanRE_image, f"{filename}_meanRE_thresh.png")
-
-
         RGB_image = get_components_view(im_aligned, (2,1,0))
         save_image(RGB_image, f"{filename}_RGB.png", bgr=True)
 
         NDWI_image = get_index_view(im_aligned, CHANNELS["NIR"], CHANNELS["G"])
-        save_image(NDWI_image, f"{filename}_RNDWI_norm.png")
+        save_image(NDWI_image, f"{filename}_RNDWI.png")
 
         mulRE_image = get_custom_index("1-((RE-G)/(RE+G) * (RE-B)/(RE+B))", im_aligned)
-        save_image(mulRE_image, f"{filename}_mulRE_norm.png")
+        save_image(mulRE_image, f"{filename}_mulRE.png")
 
         meanRE_image = get_custom_index("0.5 * (RE-G)/(RE+G) + 0.5 * (RE-B)/(RE+B)", im_aligned)
-        save_image(meanRE_image, f"{filename}_meanRE_norm.png")
+        save_image(meanRE_image, f"{filename}_meanRE.png")
 
 
 

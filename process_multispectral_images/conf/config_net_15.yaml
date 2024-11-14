@@ -1,0 +1,12 @@
+paths:
+  images: /home/anna/Pictures/pool/ghost_net/0047SET/000
+  warp_matrices: /home/anna/code/process_multispectral_images/out/warp_matrices_reference
+  panel_image_nr: "0000"
+  output: /home/anna/Pictures/pool/ghost_net/out/15:00
+  channels_output: /home/anna/Pictures/annotation/ghost_net_15/
+
+params:
+  altitude_change: [52, 52, 52, 51, 51, 10, 9, 7,
+                   11, 11, 12, 12, 12, 18, 16]
+  image_numbers: [1, 3, 5, 6, 7, 11, 13, 15,
+                  16, 18, 19, 20, 21, 24, 28]

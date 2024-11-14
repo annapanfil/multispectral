@@ -3,6 +3,7 @@ paths:
   warp_matrices: /home/anna/code/process_multispectral_images/out/warp_matrices_reference
   panel_image_nr: "0000"
   output: /home/anna/Pictures/pool/bags/out/12:00
+  channels_output: /home/anna/Pictures/annotation/bags_12/
 
 params:
   altitude_change: 35
