@@ -8,45 +8,81 @@ from skimage import img_as_float
 from shapes import Circle, Rectangle
 
 
-def find_pool(image: np.array) -> Rectangle:
+def find_pool(image: np.array, altitude: int, threshold:int = 110, verb=False) -> Rectangle:
+   """ Get the dark, big rectangle from image – the pool"""
 
-    image = cv2.GaussianBlur(image, (23,23), 0)
+   if altitude < 7:
+      return Rectangle(x_l=0, x_r=image.shape[1], y_b=0, y_t=image.shape[0])
 
-    image[image<130] = 0
-    image[image>=130] = 255
+   blurred = cv2.GaussianBlur(image, (25,25), 0)
 
-    # Apply Sobel filter (gradient in x and y directions)
-    sobel_x = cv2.Sobel(image, cv2.CV_64F, 1, 0, ksize=3)
-    sobel_y = cv2.Sobel(image, cv2.CV_64F, 0, 1, ksize=3)
-    edges = cv2.magnitude(sobel_x, sobel_y)
-    edges = cv2.convertScaleAbs(edges)
+   if verb:
+      plt.subplots(2,3, figsize = (26,16))
+      plt.subplot(2,3,1)
+      plt.imshow(blurred, cmap="gray")
 
-    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+   blurred[blurred<threshold] = 0
+   blurred[blurred>=threshold] = 255
 
-    # Find the largest quadrilateral with the correct ratio (pool) in the image
+   blurred = cv2.copyMakeBorder(blurred, 1, 1, 1, 1, cv2.BORDER_CONSTANT, value=255)
+   
+   if verb:
+      plt.subplot(2,3,2)
+      plt.imshow(blurred, cmap="gray")
 
-    max_area_rectangle = None
-    max_area = 0
-    for contour in contours:
-        # Approximate the contour to reduce the number of points
-        epsilon = 0.02 * cv2.arcLength(contour, True)
-        approx = cv2.approxPolyDP(contour, epsilon, True)
+   # Apply Sobel filter (gradient in x and y directions)
+   sobel_x = cv2.Sobel(blurred, cv2.CV_64F, 1, 0, ksize=3)
+   sobel_y = cv2.Sobel(blurred, cv2.CV_64F, 0, 1, ksize=3)
+   edges = cv2.magnitude(sobel_x, sobel_y)
+   edges = cv2.convertScaleAbs(edges)
 
-        # Check if the approximated contour has 4 vertices (indicating a quadrilateral)
-        if len(approx) == 4:
-            x, y, w, h = cv2.boundingRect(approx)
-            aspect_ratio = float(w) / h
+   if verb:
+      plt.subplot(2,3, 3)
+      plt.imshow(edges)
 
-            # Define acceptable aspect ratio range for rectangles
-            if 1.5 < aspect_ratio < 2.5:  # Adjust this range as needed
+   contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-                # get the largest rectangle
-                area = cv2.contourArea(approx)
-                if area > max_area:
-                    max_area = area
-                    max_area_rectangle = Rectangle(x_l=x, y_b=y, x_r=x+w, y_t=y+h)        
+   if verb:
+      plt.subplot(2,3, 4)
+      plt.imshow(cv2.drawContours(cv2.cvtColor(image, cv2.COLOR_GRAY2RGB), contours, -1, (0,255,0), 5))
+      plt.subplot(2,3, 5)
+      contour_photo = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
 
-    return max_area_rectangle
+   # Find the largest quadrilateral with the correct ratio and big enough area (pool) in the image 
+   max_area_rectangle = None
+   max_area = 0
+   for contour in contours:
+      # Approximate the contour to reduce the number of points
+      epsilon = 0.015 * cv2.arcLength(contour, True)
+      approx = cv2.approxPolyDP(contour, epsilon, True)
+
+      if verb:
+         cv2.drawContours(contour_photo, approx, -1, (0,255,0), 5)
+      
+      # Check if the approximated contour has 4 vertices (indicating a quadrilateral)
+      if len(approx) == 4:
+         x, y, w, h = cv2.boundingRect(approx)
+         aspect_ratio = float(w) / h
+
+         # Define acceptable aspect ratio range for rectangles
+         if 1.5 < aspect_ratio < 2.5:
+
+            # get the largest rectangle
+            area = cv2.contourArea(approx)
+
+            # Check if the area of the rectangle is within the acceptable range
+            if area > 0.02 * image.shape[0] * image.shape[1]:
+               if area > max_area:
+                  max_area = area
+                  max_area_rectangle = Rectangle(x_l=x, y_b=y, x_r=x+w, y_t=y+h)        
+         
+   if verb:
+      if max_area_rectangle is not None:
+         cv2.rectangle(contour_photo, (max_area_rectangle.x_l, max_area_rectangle.y_b), (max_area_rectangle.x_r, max_area_rectangle.y_t), (255,0,0), 2)
+      plt.imshow(contour_photo)
+      plt.show()
+      
+   return max_area_rectangle
 
 
 def apply_dog(image: np.array, sigma: int, threshold=0.03) -> Tuple[np.array, np.array]:
@@ -79,7 +115,7 @@ def get_figures_from_contours(contours, image_shape, threshold) -> Tuple[List[Re
       circle = Circle(x=center[0], y=center[1], r=radius)
       
       # filter by size
-      if circle.r < threshold * image_shape[0]:
+      if circle.r < threshold:
          circles.append(circle)     
          rectangles.append(Rectangle(x_l=x, y_b=y, x_r=x+w, y_t=y+h))
 
