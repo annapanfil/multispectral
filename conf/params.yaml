@@ -1,0 +1,5 @@
+params:
+  dog_threshold: 0.01
+  size_max_threshold_perc: 0.25 # as percentage of the pool width
+  sigma: 16
+  gamma: 2
