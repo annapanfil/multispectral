@@ -5,6 +5,7 @@ from typing import Tuple, List
 from skimage.filters import difference_of_gaussians
 from skimage import img_as_float
 
+from display import draw_litter, draw_rectangles, show_images
 from shapes import Circle, Rectangle
 
 
@@ -98,6 +99,14 @@ def apply_dog(image: np.array, sigma: int, threshold=0.03) -> Tuple[np.array, np
 
    return mask, dog_image
 
+def convert_from_pool_to_abs_coords(bboxes: List[Rectangle], pool: Rectangle) -> List[Rectangle]:
+   abs_bboxes = []
+   for bbox in bboxes:
+      abs_bbox = Rectangle(x_l=bbox.x_l + pool.x_l, y_b=bbox.y_b + pool.y_b, x_r=bbox.x_r + pool.x_l, y_t=bbox.y_t + pool.y_b)
+      abs_bboxes.append(abs_bbox)
+
+   return abs_bboxes
+
 
 def get_figures_from_contours(contours, image_shape, threshold) -> Tuple[List[Rectangle], List[Circle]]:
    """
@@ -128,3 +137,24 @@ def detect_blobs(image: np.array, sigma: int, threshold: float) -> Tuple[Tuple[n
    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
    return contours, dog_image, mask
+
+def find_litter(image: np.array, im_name, sigma: int, dog_threshold: float, size_max_threshold_perc: float, verb=False) -> Tuple[List[int], List[Rectangle], Rectangle, np.array, np.array]:
+   pool = find_pool(image, int(im_name.split("_")[-2]), verb=verb)
+
+   if pool is None:
+      print(f"Pool not found in {im_name}. Trying raising contrast")
+      equalized_image = cv2.equalizeHist(image)
+      pool = find_pool(equalized_image, int(im_name.split("_")[-2]), verb=verb)
+      if pool is None: 
+         print("Pool not found")
+         return
+
+   cropped_image = image[pool.y_b:pool.y_t, pool.x_l:pool.x_r]
+   
+   blob_contours, dog_image, mask = detect_blobs(cropped_image, sigma, dog_threshold)
+   bb_rectangles, bb_circles = get_figures_from_contours(blob_contours, image.shape, size_max_threshold_perc * (pool.x_r- pool.x_l))
+
+   return blob_contours, bb_rectangles, pool, dog_image, mask
+
+
+

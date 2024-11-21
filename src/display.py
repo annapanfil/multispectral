@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
+from typing import List, Tuple
 
-from detection import get_figures_from_contours
+from shapes import Circle, Rectangle
 
 def show_images(images, titles=None, show=True):
     num_images = len(images)
@@ -40,29 +41,29 @@ def show_image(img, title="Image", cmap_type="gray", figsize=(8,4)):
     plt.show()
 
 
+def draw_rectangles(image: np.array, rectangles: List[Rectangle], color: Tuple[int] = (255, 0, 0)) -> np.array:
+    for rectangle in rectangles:
+        cv2.rectangle(image, (rectangle.x_l, rectangle.y_b), (rectangle.x_r, rectangle.y_t), color, 2)
 
-def draw_litter(image: np.array, blob_contours: list, size_max_threshold: float, circles=True, rectangles=False, contours=False):
-   """
-   Draw contours around litter blobs on the image
-    :param image: Input grayscale image
-    :param blob_contours: List of contours
-    :param size_max_threshold: Maximum size threshold for blob detection (circles and rectangles)
-    :param circles: if to draw circles around detected blobs
-    :param rectangles: if to draw rectangles around detected blobs
-    :param contours: if to draw contours around detected blobs
-    :return: Image with detected blobs, Dog image, and mask
-    """
-   bb_rectangles, bb_circles = get_figures_from_contours(blob_contours, image.shape, size_max_threshold)
+    return image
 
-   # Draw the contours
-   im_detected = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-   if contours:
-      cv2.drawContours(im_detected, blob_contours, -1, (100,200,0), 2)
-   if circles:
-      for circle in bb_circles:
-         cv2.circle(im_detected, (circle.x, circle.y), circle.r, (255,0,0), 2)
-   if rectangles:
-      for rectangle in bb_rectangles:
-         cv2.rectangle(im_detected, (rectangle.x_l, rectangle.y_b), (rectangle.x_r, rectangle.y_t), (255,0,0), 2)
 
-   return im_detected
+def draw_litter(image: np.array, pool: Rectangle, blob_contours, bbs: List[Rectangle], dog_image: np.array = None, mask: np.array = None, out_path: str = None, show: bool=False) -> np.ndarray:
+    im_pool = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+    cv2.rectangle(im_pool, (pool.x_l, pool.y_b), (pool.x_r, pool.y_t), (0,0,255), 5)
+    
+    cropped_image = image[pool.y_b:pool.y_t, pool.x_l:pool.x_r]
+
+    # Draw the contours
+    im_detected = cv2.cvtColor(cropped_image, cv2.COLOR_GRAY2RGB)
+    cv2.drawContours(im_detected, blob_contours, -1, (100,200,0), 2)
+    draw_rectangles(im_detected, bbs, (255,0,0))
+
+    figure = show_images([im_pool, dog_image, mask, im_detected], ["detected pool", "after DOG", "mask (DOG + threshold)", "litter found"], show=show)
+    if out_path != "":
+        figure.savefig(f"{out_path}_detected_verb.png")
+        cv2.imwrite(f"{out_path}_detected.png", im_detected)
+
+    plt.close()
+
+    return im_detected

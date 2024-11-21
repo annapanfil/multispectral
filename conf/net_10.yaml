@@ -5,4 +5,4 @@ paths:
   #  ls -1 | cut -d'_' -f1,2 | uniq | sed 's/^/"/; s/$/",/' |tr '\n' ' '
   base: "/home/anna/Datasets/pool/ghost_net/out/10:00"
   im_numbers: ["0011_30", "0012_25", "0014_20", "0015_15", "0016_10", "0017_5", "0020_6"]
-  out: ../out/10
+  out: ../out/net_10
