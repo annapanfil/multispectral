@@ -1,9 +1,11 @@
 import os
+
 from display import draw_litter
 import hydra
 import cv2
 
-from detection import find_litter
+from detection import find_litter, group_contours
+from shapes import Rectangle
 
 @hydra.main(config_path="../conf", config_name="net_10", version_base=None)
 def main(cfg):
@@ -18,15 +20,19 @@ def main(cfg):
     for im_name in im_names:
         image = cv2.imread(f"{cfg.paths.base}/{im_name}", cv2.IMREAD_GRAYSCALE)    
         altitude = int(im_name.split("_")[-2])  # Extract the altitude from the image name
-        
+
         blob_contours, bbs, pool, dog_image, mask = find_litter(image.copy(), im_name, 
                     sigma=cfg.params.sigma_a * altitude + cfg.params.sigma_b,
                     # sigma=cfg.params.sigma,
                     dog_threshold=cfg.params.dog_threshold, 
                     size_max_threshold_perc=cfg.params.size_max_threshold_perc, 
                     verb=verb)
-    
-        draw_litter(image.copy(), pool, blob_contours, bbs, dog_image, mask, f"{cfg.paths.out}/{im_name.split('/')[-1][:-4]}")
+        
+        grouped_contours = group_contours(blob_contours, scale=2, image=image)
+
+        im_detected = draw_litter(image.copy(), pool, blob_contours, bbs, dog_image, mask, f"{cfg.paths.out}/{im_name.split('/')[-1][:-4]}")
+        draw_litter(im_detected, Rectangle(x_l=0, x_r=5000, y_b=0, y_t=5000), grouped_contours, show=True, color=(255,0,0))
+
 
 
 

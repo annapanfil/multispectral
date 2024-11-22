@@ -5,7 +5,6 @@ from typing import Tuple, List
 from skimage.filters import difference_of_gaussians
 from skimage import img_as_float
 
-from display import draw_litter, draw_rectangles, show_images
 from shapes import Circle, Rectangle
 
 
@@ -158,3 +157,29 @@ def find_litter(image: np.array, im_name, sigma: int, dog_threshold: float, size
 
 
 
+def group_contours(contours: list, scale: float, image: np.array):
+   # enlarge the contours
+   print(contours[0].shape)
+   resized_contours = []
+   for contour in contours:
+      if len(contour) > 2:
+         # make them convex
+         contour = cv2.convexHull(contour)
+
+         # center of the mass
+         M = cv2.moments(contour)
+         cx = int(M['m10'] / M['m00'])
+         cy = int(M['m01'] / M['m00'])
+
+         resized_points = np.array([[point[0][0] - cx, point[0][1] - cy] for point in contour], dtype=float)
+         resized_points *= scale
+         resized_points = np.array([[[point[0] + cx, point[1] + cy]] for point in resized_points], dtype=np.int32)
+         resized_contours.append(resized_points)
+
+      mask = np.zeros(image.shape[:2], dtype=np.uint8)  # Ensure single-channel
+      for contour in resized_contours:
+         mask = cv2.fillPoly(mask, [contour], color=255)  # Use 255 for white
+
+      plt.imshow(mask, cmap="gray")
+  
+   return tuple(resized_contours)
