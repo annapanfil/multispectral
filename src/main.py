@@ -1,5 +1,7 @@
 import os
 
+from matplotlib import pyplot as plt
+
 from display import draw_litter
 import hydra
 import cv2
@@ -28,10 +30,19 @@ def main(cfg):
                     size_max_threshold_perc=cfg.params.size_max_threshold_perc, 
                     verb=verb)
         
-        grouped_contours = group_contours(blob_contours, scale=2, image=image)
 
-        im_detected = draw_litter(image.copy(), pool, blob_contours, bbs, dog_image, mask, f"{cfg.paths.out}/{im_name.split('/')[-1][:-4]}")
-        draw_litter(im_detected, Rectangle(x_l=0, x_r=5000, y_b=0, y_t=5000), grouped_contours, show=True, color=(255,0,0))
+        im_detected = draw_litter(image.copy(), pool, blob_contours, bbs, dog_image, mask, f"{cfg.paths.out}/{im_name.split('/')[-1][:-4]}", color=(0,0,255))
+        groups_contours, groups_rectangles = group_contours(blob_contours, 70, image[pool.y_b:pool.y_t, pool.x_l:pool.x_r].copy())
+
+        cv2.drawContours(im_detected, groups_contours, -1, (255,0,0), 2)
+        cv2.drawContours(im_detected, groups_rectangles, -1, (255,0,0), 2)
+        print(groups_rectangles )
+
+        plt.imshow(im_detected)
+        plt.show()
+
+
+
 
 
 
@@ -39,5 +50,3 @@ def main(cfg):
 if __name__ == "__main__":
     main()
     
-
-

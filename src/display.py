@@ -60,7 +60,7 @@ def draw_litter(image: np.array, pool: Rectangle, blob_contours, bbs: List[Recta
     cv2.drawContours(im_detected, blob_contours, -1,color, 2)
     
     if bbs is not None:
-        draw_rectangles(im_detected, bbs, (255,0,0))
+        draw_rectangles(im_detected, bbs, color)
 
     if dog_image is not None and mask is not None:
         figure = show_images([im_pool, dog_image, mask, im_detected], ["detected pool", "after DOG", "mask (DOG + threshold)", "litter found"], show=show)

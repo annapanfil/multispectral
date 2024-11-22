@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Tuple, List
+from display import show_images
 from skimage.filters import difference_of_gaussians
 from skimage import img_as_float
 
@@ -107,7 +108,7 @@ def convert_from_pool_to_abs_coords(bboxes: List[Rectangle], pool: Rectangle) ->
    return abs_bboxes
 
 
-def get_figures_from_contours(contours, image_shape, threshold) -> Tuple[List[Rectangle], List[Circle]]:
+def get_figures_from_contours(contours) -> Tuple[List[Rectangle], List[Circle]]:
    """
       Extract bounding boxes as rectangles and circles from the contours
    """
@@ -123,7 +124,7 @@ def get_figures_from_contours(contours, image_shape, threshold) -> Tuple[List[Re
       circle = Circle(x=center[0], y=center[1], r=radius)
       
       # filter by size
-      if circle.r < threshold:
+      if circle.r:
          circles.append(circle)     
          rectangles.append(Rectangle(x_l=x, y_b=y, x_r=x+w, y_t=y+h))
 
@@ -151,35 +152,36 @@ def find_litter(image: np.array, im_name, sigma: int, dog_threshold: float, size
    cropped_image = image[pool.y_b:pool.y_t, pool.x_l:pool.x_r]
    
    blob_contours, dog_image, mask = detect_blobs(cropped_image, sigma, dog_threshold)
-   bb_rectangles, bb_circles = get_figures_from_contours(blob_contours, image.shape, size_max_threshold_perc * (pool.x_r- pool.x_l))
+
+   # filter out
+   blob_contours = [contour for contour in blob_contours if cv2.minEnclosingCircle(contour)[1] < size_max_threshold_perc * (pool.x_r- pool.x_l)]
+
+
+   bb_rectangles, bb_circles = get_figures_from_contours(blob_contours )
 
    return blob_contours, bb_rectangles, pool, dog_image, mask
 
 
 
-def group_contours(contours: list, scale: float, image: np.array):
-   # enlarge the contours
-   print(contours[0].shape)
-   resized_contours = []
-   for contour in contours:
-      if len(contour) > 2:
-         # make them convex
-         contour = cv2.convexHull(contour)
+def group_contours(contours: list, margin:int, image: np.array):
+   # enlarge contours
+   mask = np.zeros(image.shape[:2], dtype=np.uint8)
 
-         # center of the mass
-         M = cv2.moments(contour)
-         cx = int(M['m10'] / M['m00'])
-         cy = int(M['m01'] / M['m00'])
+   cv2.drawContours(mask, contours, -1, 255, margin)
+   cv2.drawContours(mask, contours, -1, 255, -1)
 
-         resized_points = np.array([[point[0][0] - cx, point[0][1] - cy] for point in contour], dtype=float)
-         resized_points *= scale
-         resized_points = np.array([[[point[0] + cx, point[1] + cy]] for point in resized_points], dtype=np.int32)
-         resized_contours.append(resized_points)
+   # reduce joined contours
+   kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (margin, margin))
+   mask = cv2.erode(mask, kernel, iterations=1)
 
-      mask = np.zeros(image.shape[:2], dtype=np.uint8)  # Ensure single-channel
-      for contour in resized_contours:
-         mask = cv2.fillPoly(mask, [contour], color=255)  # Use 255 for white
+   # find rectangles
+   joined_contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-      plt.imshow(mask, cmap="gray")
-  
-   return tuple(resized_contours)
+   boxes = []
+   for contour in joined_contours:
+      rect = cv2.minAreaRect(contour)
+      box = cv2.boxPoints(rect)
+      box = np.int0(box)
+      boxes.append(box)
+
+   return joined_contours, boxes
