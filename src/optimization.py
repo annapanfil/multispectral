@@ -5,7 +5,7 @@ from typing import List
 
 from matplotlib import pyplot as plt
 import numpy as np
-from detection import convert_from_pool_to_abs_coords, find_litter
+from detection import pool2abs_rect, find_litter
 from display import draw_rectangles
 import hydra
 import optuna
@@ -134,7 +134,7 @@ def evaluate_detector(params: dict, images_paths: List[str], ground_truth_boxes:
             params["dog_thresh"], params["max_litter_size_tresh_perc"]
         )
 
-        detected_boxes = convert_from_pool_to_abs_coords(detected_boxes, pool)
+        detected_boxes = pool2abs_rect(detected_boxes, pool)
 
         # print(f"Found {len(detected_boxes)} boxes")
 

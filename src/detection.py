@@ -99,13 +99,17 @@ def apply_dog(image: np.array, sigma: int, threshold=0.03) -> Tuple[np.array, np
 
    return mask, dog_image
 
-def convert_from_pool_to_abs_coords(bboxes: List[Rectangle], pool: Rectangle) -> List[Rectangle]:
+def pool2abs_rect(bboxes: List[Rectangle], pool: Rectangle) -> List[Rectangle]:
    abs_bboxes = []
    for bbox in bboxes:
       abs_bbox = Rectangle(x_l=bbox.x_l + pool.x_l, y_b=bbox.y_b + pool.y_b, x_r=bbox.x_r + pool.x_l, y_t=bbox.y_t + pool.y_b)
       abs_bboxes.append(abs_bbox)
 
    return abs_bboxes
+
+def pool2abs_point(point: Tuple[float, float], pool: Rectangle) -> Tuple[float, float]:
+   return point[0] + pool.x_l, point[1] + pool.y_b
+
 
 
 def get_figures_from_contours(contours) -> Tuple[List[Rectangle], List[Circle]]:
@@ -177,11 +181,29 @@ def group_contours(contours: list, margin:int, image: np.array):
    # find rectangles
    joined_contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-   boxes = []
+   rects_for_drawing = []
+   rects = []
    for contour in joined_contours:
       rect = cv2.minAreaRect(contour)
       box = cv2.boxPoints(rect)
       box = np.int0(box)
-      boxes.append(box)
+      rects.append(rect)
+      rects_for_drawing.append(box)
 
-   return joined_contours, boxes
+   return joined_contours, rects, rects_for_drawing
+
+
+def get_real_piles_size(im_shape: np.array, altitude: float, cam_hfov: float, cam_vfov: float, rectangles: list):
+   sizes = []
+   for rect in rectangles:
+      width_px, height_px = rect[1]
+      im_height_px, im_width_px = im_shape
+
+      image_width_m = 2 * altitude * np.tan(cam_hfov/2)
+      image_height_m = 2 * altitude * np.tan(cam_vfov/2)
+
+      width_m = image_width_m/im_width_px * width_px
+      height_m = image_height_m/im_height_px * height_px
+
+      sizes.append((width_m, height_m))
+   return sizes
