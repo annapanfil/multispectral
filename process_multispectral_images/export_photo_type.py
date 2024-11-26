@@ -16,7 +16,7 @@ def threshold_percentiles(image):
     return image
 
 
-@hydra.main(config_path="conf", config_name="config_net_12", version_base=None)
+@hydra.main(config_path="conf", config_name="black_bed", version_base=None)
 def main(cfg):
     # setup environment
     image_numbers = [f"{x:04}" for x in cfg.params.image_numbers]
@@ -44,7 +44,7 @@ def main(cfg):
             altitude = int(altitude - cfg.params.altitude_change)
         
         # align the image
-        img_type, irradiance_list = get_irradiance(img_capt, panel_capt, display=False)
+        img_type, irradiance_list = get_irradiance(img_capt, panel_capt, display=True)
         im_aligned = align_from_saved_matrices(img_capt, img_type, cfg.paths.warp_matrices, altitude, allow_closest=True)
 
         # save views
@@ -61,8 +61,6 @@ def main(cfg):
 
         meanRE_image = get_custom_index("0.5 * (RE-G)/(RE+G) + 0.5 * (RE-B)/(RE+B)", im_aligned)
         save_image(meanRE_image, f"{filename}_meanRE.png")
-
-
 
         # CIR_image = get_components_view(im_aligned, (3,2,1))
         # save_image(CIR_image, f"{filename}_CIR.png", bgr=True)
