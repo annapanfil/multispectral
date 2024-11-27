@@ -44,7 +44,8 @@ def main(cfg):
             altitude = int(altitude - cfg.params.altitude_change)
         
         # align the image
-        img_type, irradiance_list = get_irradiance(img_capt, panel_capt, display=True)
+        img_type = get_irradiance(img_capt, panel_capt, display=False)
+
         im_aligned = align_from_saved_matrices(img_capt, img_type, cfg.paths.warp_matrices, altitude, allow_closest=True)
 
         # save views

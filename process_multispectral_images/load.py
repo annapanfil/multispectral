@@ -69,13 +69,16 @@ def get_irradiance(img_capt, panel_capt, display=False):
             img_type = "radiance"
             irradiance_list = None
     
+    for img, irradiance in zip(img_capt.images, irradiance_list):
+            img.reflectance(irradiance)
+
     if display:
         if img_type == "reflectance":
             img_capt.plot_undistorted_reflectance(to_plot)
         elif img_type == "radiance":
             img_capt.plot_undistorted_radiance()
 
-    return img_type, irradiance_list
+    return img_type
 
 def save_warp_matrices(warp_matrices, fn="./out/warp_matrices_SIFT.npy"):
     np.save(fn, np.array(warp_matrices), allow_pickle=True)
