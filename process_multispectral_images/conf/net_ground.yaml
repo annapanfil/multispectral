@@ -1,0 +1,9 @@
+paths:
+  images: /home/anna/Datasets/pool/black_bed/0051SET/000
+  warp_matrices: /home/anna/code/process_multispectral_images/out/warp_matrices_reference
+  panel_image_nr: "0000"
+  output: /home/anna/Datasets/pool/black_bed/out/net_ground
+
+params:
+  altitude_change: [46, 48]
+  image_numbers: [13, 15]
