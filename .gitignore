@@ -7,7 +7,12 @@
 *.jpg
 process_multispectral_images/out/*
 */__pycache__/*
+*out/
+*outputs/
 
 
 # imported code
-imageprocessing
+imageprocessing/
+Trash-detection-/
+import-multispectral-images-tutorial/
+litter_detection/
