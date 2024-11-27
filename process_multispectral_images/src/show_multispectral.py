@@ -23,6 +23,9 @@ def get_args():
     if args.panel_image_nr is not None:
         args.panel_image_nr = f"{args.panel_image_nr:04}"
 
+    if not os.path.exists(f"{args.image_dir}/{args.set_nr:04}SET/000/IMG_{args.image_nr:04}_1.tif"):
+        raise FileNotFoundError(f"Image not found in path {args.image_dir}/{args.set_nr:04}SET/000/IMG_{args.image_nr:04}_1.tif")
+
     with exiftool.ExifToolHelper() as et:
         altitude = et.get_tags(f"{args.image_dir}/{args.set_nr:04}SET/000/IMG_{args.image_nr:04}_1.tif", ["Composite:GPSAltitude"])[0]["Composite:GPSAltitude"]
 

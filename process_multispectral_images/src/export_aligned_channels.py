@@ -10,7 +10,7 @@ from load import align_from_saved_matrices, load_image_set, get_irradiance
 from visualise import get_components_view, get_custom_index, save_image, CHANNELS
 import micasense.imageutils as imageutils
 
-@hydra.main(config_path="conf", config_name="config_net_10", version_base=None)
+@hydra.main(config_path="../conf", config_name="config_net_10", version_base=None)
 def main(cfg):
     # setup environment
     image_numbers = [f"{x:04}" for x in cfg.params.image_numbers]
