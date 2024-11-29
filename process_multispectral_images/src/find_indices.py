@@ -52,6 +52,9 @@ class FormulaNode:
         right_result = self.right.evaluate() if isinstance(self.right, FormulaNode) else self.right
         return self.operation(left_result, right_result)
     
+    def __call__(self):
+        self.evaluate()
+
     def __repr__(self):
         """Returns a string representation of the formula node with operation symbols."""
         if self.operation is None:
@@ -182,13 +185,34 @@ class FormulaNode:
 
         return True
         
+    def _change_value(self, values):
+        """Replace a leaf node with random value"""
+
+        # Randomly decide whether to go to the left or right node
+        target = 'left' if random.choice([True, False]) else 'right'
+        next_node = getattr(self, target)
+
+        if not isinstance(next_node, FormulaNode):
+            # We've reached a leaf node, so we replace it
+            new_value = random.choice([v for v in values if v != next_node])
+            setattr(self, target, new_value)
+        else:
+            # Continue the recursion
+            next_node._change_value(values)
         
+        return True
+
+
+
     def permute(self, operations: list, channels: list):
         """Randomly permutes the tree."""
 
-        # random.choice([self._prune, self._add, self._swap, self._change_op, self._change_channel])
+        # random.choice([self._prune, self._add, self._swap, self._change_op, self._change_value])
         
-        permuted = self._change_op(operations)
+        # permuted = self._change_value(channels)
+
+
+        # permuted = self._change_op(operations)
 
         # permuted = self._swap()
         # if not permuted:
