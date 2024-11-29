@@ -135,12 +135,13 @@ class FormulaNode:
                 self.left, self.right = self.right, self.left
                 return True 
         
+        # decide if to swap here
         if self.symbol not in ALTERNATE_OPERATORS:
-            if random.choice([True, False]): # if to swap here
+            if random.choice([True, False]): 
                 self.left, self.right = self.right, self.left
                 return True
         
-        # Determine which children are nodes
+        # Go to child node
         if sum(children_are_nodes) == 2:  # Both children are nodes
             permuted = random.choice([self.left, self.right])._swap()
         elif children_are_nodes[0]:  # Only the left child is a node
@@ -158,13 +159,40 @@ class FormulaNode:
 
         return True
 
+    def _change_op(self, operations: list):
+        """Randomly change the operation of a node."""
+        children_are_nodes = (isinstance(self.left, FormulaNode), isinstance(self.right, FormulaNode))
+        
+        # decide if to change here
+        if sum(children_are_nodes) == 0 or random.choice([True, False]):
+            self.operation, self.symbol = random.choice([op for op in operations if op != (self.operation, self.symbol)])
+            return True
+            
+        # Go to child node
+        if sum(children_are_nodes) == 2:  # Both children are nodes
+            permuted = random.choice([self.left, self.right])._change_op(operations)
+        elif children_are_nodes[0]:  # Only the left child is a node
+            permuted = self.left._change_op(operations)
+        elif children_are_nodes[1]:  # Only the right child is a node
+            permuted = self.right._change_op(operations)
 
-    def permute(self, operations, channels):
+        if not permuted:
+            # change here
+            self.operation, self.symbol = random.choice([op for op in operations if op != (self.operation, self.symbol)])
+
+        return True
+        
+        
+    def permute(self, operations: list, channels: list):
         """Randomly permutes the tree."""
 
         # random.choice([self._prune, self._add, self._swap, self._change_op, self._change_channel])
         
-        permuted = self._swap()
+        permuted = self._change_op(operations)
+
+        # permuted = self._swap()
+        # if not permuted:
+        #     print("Cannot swap if all the operations are alternate")
 
         # permuted = self._add(operations, channels)
 
