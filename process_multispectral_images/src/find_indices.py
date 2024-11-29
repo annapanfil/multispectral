@@ -2,6 +2,8 @@ from typing import Tuple, Union, Callable, List
 import numpy as np
 import random
 
+ALTERNATE_OPERATORS = ['+', '*']
+
 class FormulaNode:
     def __init__(self, operation: Callable[[np.array, np.array], np.array] = None, 
                  symbol: str = None, 
@@ -69,11 +71,10 @@ class FormulaNode:
                 self.left = random.choice(values_for_removed_nodes)
             else:
                 self.right = random.choice(values_for_removed_nodes)
-        else: # only one child is a node, so cut this one off
-            if children_are_nodes[0]:
-                self.left = random.choice(values_for_removed_nodes)
-            else:
-                self.right = random.choice(values_for_removed_nodes)
+        elif children_are_nodes[0]: # only left child is a node, so cut this one off
+            self.left = random.choice(values_for_removed_nodes)
+        else:  # only right child is a node, so cut this one off
+            self.right = random.choice(values_for_removed_nodes)
         return True
 
     def _prune(self, values_for_removed_nodes=[None]):
@@ -121,14 +122,51 @@ class FormulaNode:
         
         return True
 
-    
+    def _swap(self):
+        """Randomly remove one node (not leaf) from the tree and replace it with a value. 
+        Not possible if the tree has only one operation (depth == 1)."""
+        children_are_nodes = (isinstance(self.left, FormulaNode), isinstance(self.right, FormulaNode))
+
+        # if we have no other node to go to, swap leaves
+        if sum(children_are_nodes) == 0:
+            if self.symbol in ALTERNATE_OPERATORS: # pointless to swap
+                return False
+            else:
+                self.left, self.right = self.right, self.left
+                return True 
+        
+        if self.symbol not in ALTERNATE_OPERATORS:
+            if random.choice([True, False]): # if to swap here
+                self.left, self.right = self.right, self.left
+                return True
+        
+        # Determine which children are nodes
+        if sum(children_are_nodes) == 2:  # Both children are nodes
+            permuted = random.choice([self.left, self.right])._swap()
+        elif children_are_nodes[0]:  # Only the left child is a node
+            permuted = self.left._swap()
+        elif children_are_nodes[1]:  # Only the right child is a node
+            permuted = self.right._swap()
+
+        if not permuted:
+            # swap if possible
+            if self.symbol in ALTERNATE_OPERATORS: # pointless to swap
+                return False
+            else:
+                self.left, self.right = self.right, self.left
+                return True 
+
+        return True
+
 
     def permute(self, operations, channels):
         """Randomly permutes the tree."""
 
         # random.choice([self._prune, self._add, self._swap, self._change_op, self._change_channel])
         
-        permuted = self._add(operations, channels)
+        permuted = self._swap()
+
+        # permuted = self._add(operations, channels)
 
         # permuted = self._prune(channels)
         # if not permuted:
@@ -171,11 +209,11 @@ operations = [
 # root = generate_random_formula(channels, operations, depth=3)  # Depth 3 for complexity
 
 
-# (5 + 3) * (5 - (4 * 2))
+# (5 + 3) / (5 - (4 * 2))
 node1 = FormulaNode(operation=np.add, symbol='+', left=5, right=3)  # (5 + 3)
 node2 = FormulaNode(operation=np.multiply, symbol='*', left=4, right=2)  # (4 * 2)
 node3 = FormulaNode(operation=np.subtract, symbol='-', left=5, right=node2)
-root = FormulaNode(operation=np.multiply, symbol='*', left=node1, right=node3)
+root = FormulaNode(operation=np.multiply, symbol='/', left=node1, right=node3)
 
 
 # Evaluate the tree
