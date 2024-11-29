@@ -254,21 +254,35 @@ class FormulaNode:
             permutation = random.choice(permutations)
             
 
+def random_exp(max_val: float):
+    """Choose a random number from 0 to max_val with exponentially higher probability closer to max_val"""
+    if max_val == 0: return 0
+
+    values = np.arange(max_val+1)
+    probabilities = np.exp(values / max_val)
+    probabilities /= probabilities.sum()  # Normalizacja
+    return np.random.choice(values, p=probabilities)
+
 def generate_random_formula(values: list, operations: list, depth: int = 10) -> FormulaNode:
-    """Recursively generates a random formula tree."""
+    """Recursively generates a random formula tree with required depth"""
     if depth == 0:
         # Return a leaf node
         return random.choice(values)
-  
-    # Recursively generate the left and right subtrees
-    left_node = generate_random_formula(values, operations, random.randint(0, depth - 1))
-    right_node = generate_random_formula(values, operations, random.randint(0, depth - 1))
-    
-    return FormulaNode(random.choice(operations), left=left_node, right=right_node)
+
+    #  ensure one branch has required depth
+    depths = [random_exp(depth-1), depth-1]
+    random.shuffle(depths)
+
+    left_node = generate_random_formula(values, operations, depths[0])
+    right_node = generate_random_formula(values, operations, depths[1])
+
+    node = FormulaNode(random.choice(operations), left=left_node, right=right_node)
+    node.make_not_trivial(FormulaNode.VALUES)
+    return node
+
 
 
 root = generate_random_formula(FormulaNode.VALUES, FormulaNode.OPERATIONS, depth=3)
-
 
 # (5 + 3) / (5 - (4 * 2))
 # node1 = FormulaNode((np.add, '+'), 5, 3)  # (5 + 3)
@@ -277,7 +291,7 @@ root = generate_random_formula(FormulaNode.VALUES, FormulaNode.OPERATIONS, depth
 # root = FormulaNode((np.divide, '+'), node1, node3)
 
 # Evaluate the tree
-print(f"{root} = {root():.2f}")
+print(f"{root} = {root():.2f} d={root.depth}")
 
 for _ in range(5):
     root.permute()
