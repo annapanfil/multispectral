@@ -16,6 +16,7 @@ class FormulaNode:
         ] 
     
     ALTERNATE_OPERATORS = ['+', '*']
+    FORBIDEN_IDENTICAL = ['-', '/']
     
     VALUES = [2.0, 3.0, 4.0, 5.0, 6.0]
 
@@ -30,11 +31,15 @@ class FormulaNode:
         :param left: Left operand (FormulaNode or array).
         :param right: Right operand (FormulaNode or array).
         """
-    
+        changing = left is None or right is None
+
         self.operation, self.symbol = operation if operation is not None else random.choice(self.OPERATIONS)
         self.left = left if left is not None else random.choice(self.VALUES)
         self.right = right if right is not None else random.choice(self.VALUES)
-        self.depth = self._calc_depth() 
+
+        if changing: self.make_not_trivial(self.VALUES) # if the user makes trivial operation then we don't change anything
+        
+        self.depth = self._calc_depth()
 
     def _calc_depth(self) -> int:
         """
@@ -65,7 +70,17 @@ class FormulaNode:
         return self.operation(left_result, right_result)
     
     def __call__(self):
-        self.evaluate()
+        return self.evaluate()
+
+    def make_not_trivial(self, allowed_values: list):
+        """Ensure that operations on integers are not trivial (e.g. x-x or x/x)"""
+        if isinstance(self.left, FormulaNode) and isinstance(self.right, FormulaNode):
+            return
+
+        if self.symbol in self.FORBIDEN_IDENTICAL and self.left == self.right:
+            self.left = random.choice([v for v in allowed_values if v != self.left])
+            print(f"changed {self.right} to {self.left} because the operands were identical for {self.symbol}")
+        
 
     def __repr__(self):
         """Returns a string representation of the formula node with operation symbols."""
@@ -154,7 +169,11 @@ class FormulaNode:
         
         # Go to child node
         if sum(children_are_nodes) == 2:  # Both children are nodes
-            permuted = random.choice([self.left, self.right])._swap()
+            next_node = random.choice([self.left, self.right])
+            permuted = next_node._swap()
+            if not permuted: # if didn't permute there, check another path
+                next_node = self.left if next_node == self.right else self.right
+                permuted = next_node._swap()
         elif children_are_nodes[0]:  # Only the left child is a node
             permuted = self.left._swap()
         elif children_are_nodes[1]:  # Only the right child is a node
@@ -177,6 +196,7 @@ class FormulaNode:
         # decide if to change here
         if sum(children_are_nodes) == 0 or random.choice([True, False]):
             self.operation, self.symbol = random.choice([op for op in self.OPERATIONS if op != (self.operation, self.symbol)])
+            self.make_not_trivial(self.VALUES)
             return True
             
         # Go to child node
@@ -190,6 +210,7 @@ class FormulaNode:
         if not permuted:
             # change here
             self.operation, self.symbol = random.choice([op for op in self.OPERATIONS if op != (self.operation, self.symbol)])
+            self.make_not_trivial(self.VALUES)
 
         return True
         
@@ -202,7 +223,10 @@ class FormulaNode:
 
         if not isinstance(next_node, FormulaNode):
             # We've reached a leaf node, so we replace it
-            new_value = random.choice([v for v in self.VALUES if v != next_node])
+            
+            allowed_values = [v for v in self.VALUES if v != next_node]
+            new_value = random.choice(allowed_values)
+            self.make_not_trivial(allowed_values)
             setattr(self, target, new_value)
         else:
             # Continue the recursion
@@ -215,6 +239,7 @@ class FormulaNode:
     def permute(self):
         """Randomly permutes the tree."""
         permutations = [self._prune, self._add, self._swap, self._change_op, self._change_value]
+    
         permutation = random.choice(permutations)
 
         permuted = False
@@ -225,7 +250,8 @@ class FormulaNode:
             if not permuted:
                 if permutation == self._swap: print("Cannot swap if all the operations are alternate")
                 elif permutation == self._prune: print("Cannot prune tree with one node only")
-            permutations = [perm for perm in permutations if perm != permutation]
+            permutations.remove(permutation)
+            permutation = random.choice(permutations)
             
 
 def generate_random_formula(values: list, operations: list, depth: int = 10) -> FormulaNode:
@@ -241,29 +267,20 @@ def generate_random_formula(values: list, operations: list, depth: int = 10) -> 
     return FormulaNode(random.choice(operations), left=left_node, right=right_node)
 
 
-# Create tree nodes
-# A = np.array([[1, 2], [3, 4]], dtype=float)
-# B = np.array([[5, 6], [7, 8]], dtype=float)
-# C = np.array([[9, 10], [11, 12]], dtype=float)
-# D = np.array([[13, 14], [15, 16]], dtype=float)
-
-
-# root = generate_random_formula(channels, operations, depth=3)  # Depth 3 for complexity
+root = generate_random_formula(FormulaNode.VALUES, FormulaNode.OPERATIONS, depth=3)
 
 
 # (5 + 3) / (5 - (4 * 2))
-node1 = FormulaNode((np.add, '+'), 5, 3)  # (5 + 3)
-node2 = FormulaNode((np.multiply, '*'), 4, 2) # (4 * 2)
-node3 = FormulaNode((np.subtract, '-'), 5, node2)  # (5 - (4 * 2))
-root = FormulaNode((np.divide, '/'), node1, node3)
+# node1 = FormulaNode((np.add, '+'), 5, 3)  # (5 + 3)
+# node2 = FormulaNode((np.multiply, '-'), 4, 2) # (4 * 2)
+# node3 = FormulaNode((np.subtract, '+'), 5, node2)  # (5 - (4 * 2))
+# root = FormulaNode((np.divide, '+'), node1, node3)
 
 # Evaluate the tree
-print(root, root.depth)
-print(f"Result: {root.evaluate():.2f}")
-
+print(f"{root} = {root():.2f}")
 
 for _ in range(5):
     root.permute()
-    print(root, root._calc_depth())
+    print(f"{root} = {root():.2f}")
 
 
