@@ -34,9 +34,9 @@ class FormulaNode:
         right_depth = 0
         
         if isinstance(self.left, FormulaNode):
-            left_depth = self.left.depth
+            left_depth = self.left._calc_depth()
         if isinstance(self.right, FormulaNode):
-            right_depth = self.right.depth
+            right_depth = self.right._calc_depth()
 
         # The depth of the current node is the maximum of the left and right subtree depths + 1
         return max(left_depth, right_depth) + 1
@@ -77,6 +77,8 @@ class FormulaNode:
         return True
 
     def _prune(self, values_for_removed_nodes=[None]):
+        """Randomly remove one node (not leaf) from the tree and replace it with a value. 
+        Not possible if the tree has only one operation (depth == 1)."""
         children_are_nodes = (isinstance(self.left, FormulaNode), isinstance(self.right, FormulaNode))
 
         # do not cut the leaves
@@ -97,14 +99,40 @@ class FormulaNode:
             return self._prune_here(children_are_nodes, values_for_removed_nodes)
         else: return True
 
-    def permute(self, channels):
+
+    def _add(self, operations: List, values: List):
+        """Replace a leaf node with random operation"""
+        # Randomly decide whether to go to the left or right node
+
+        target = 'left' if random.choice([True, False]) else 'right'
+        next_node = getattr(self, target)
+
+        if not isinstance(next_node, FormulaNode):
+            # We've reached a leaf node, so we replace it
+            operation, symbol = random.choice(operations)
+            new_node = FormulaNode(operation=operation,
+                                symbol=symbol,
+                                left=random.choice(values),
+                                right=random.choice(values))
+            setattr(self, target, new_node)  # Update the actual left or right node
+        else:
+            # Continue the recursion
+            next_node._add(operations, values)
+        
+        return True
+
+    
+
+    def permute(self, operations, channels):
         """Randomly permutes the tree."""
 
         # random.choice([self._prune, self._add, self._swap, self._change_op, self._change_channel])
         
-        permuted = self._prune(channels)
-        if not permuted:
-            print("Cannot prune tree with one node only")
+        permuted = self._add(operations, channels)
+
+        # permuted = self._prune(channels)
+        # if not permuted:
+        #     print("Cannot prune tree with one node only")
 
 
 def generate_random_formula(values: list, operations: list, depth: int = 10) -> FormulaNode:
@@ -156,7 +184,7 @@ print(f"Result: {root.evaluate():.2f}")
 
 
 for _ in range(5):
-    root.permute(channels)
+    root.permute(operations, channels)
     print(root, root._calc_depth())
 
 
