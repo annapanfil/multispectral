@@ -3,7 +3,6 @@ import numpy as np
 import random
 
 
-
 class FormulaNode:
     # Available operations and their symbols
     
@@ -11,12 +10,12 @@ class FormulaNode:
             (np.add, '+'),
             (np.subtract, '-'),
             (np.multiply, '*'),
-            (np.divide, '/')
-            #   (lambda A, B: (A - B) / (A + B), "normdiff")] # TODO: make safe
-        ] 
+            (np.divide, '/'),
+            (lambda A, B: np.divide((A - B), (A + B)), "#")
+        ]
     
     ALTERNATE_OPERATORS = ['+', '*']
-    FORBIDEN_IDENTICAL = ['-', '/']
+    FORBIDEN_IDENTICAL = ['-', '/', '#']
     
     VALUES = [2.0, 3.0, 4.0, 5.0, 6.0]
 
@@ -79,7 +78,6 @@ class FormulaNode:
 
         if self.symbol in self.FORBIDEN_IDENTICAL and self.left == self.right:
             self.left = random.choice([v for v in allowed_values if v != self.left])
-            print(f"changed {self.right} to {self.left} because the operands were identical for {self.symbol}")
         
 
     def __repr__(self):
@@ -189,8 +187,12 @@ class FormulaNode:
 
         return True
 
-    def _change_op(self):
+    def _change_op(self, d=None):
         """Randomly change the operation of a node."""
+        if d is None: 
+            d = 0
+            self.depth = self._calc_depth()
+
         children_are_nodes = (isinstance(self.left, FormulaNode), isinstance(self.right, FormulaNode))
         
         # decide if to change here
@@ -201,11 +203,11 @@ class FormulaNode:
             
         # Go to child node
         if sum(children_are_nodes) == 2:  # Both children are nodes
-            permuted = random.choice([self.left, self.right])._change_op()
+            permuted = random.choice([self.left, self.right])._change_op(d+1)
         elif children_are_nodes[0]:  # Only the left child is a node
-            permuted = self.left._change_op()
+            permuted = self.left._change_op(d+1)
         elif children_are_nodes[1]:  # Only the right child is a node
-            permuted = self.right._change_op()
+            permuted = self.right._change_op(d+1)
 
         if not permuted:
             # change here
@@ -226,14 +228,13 @@ class FormulaNode:
             
             allowed_values = [v for v in self.VALUES if v != next_node]
             new_value = random.choice(allowed_values)
-            self.make_not_trivial(allowed_values)
             setattr(self, target, new_value)
+            self.make_not_trivial(allowed_values)
         else:
             # Continue the recursion
             next_node._change_value()
         
         return True
-
 
 
     def permute(self):
@@ -282,19 +283,13 @@ def generate_random_formula(values: list, operations: list, depth: int = 10) -> 
 
 
 
-root = generate_random_formula(FormulaNode.VALUES, FormulaNode.OPERATIONS, depth=3)
+if __name__ == "__main__":
 
-# (5 + 3) / (5 - (4 * 2))
-# node1 = FormulaNode((np.add, '+'), 5, 3)  # (5 + 3)
-# node2 = FormulaNode((np.multiply, '-'), 4, 2) # (4 * 2)
-# node3 = FormulaNode((np.subtract, '+'), 5, node2)  # (5 - (4 * 2))
-# root = FormulaNode((np.divide, '+'), node1, node3)
+    root = generate_random_formula(FormulaNode.VALUES, FormulaNode.OPERATIONS, depth=3)
 
-# Evaluate the tree
-print(f"{root} = {root():.2f} d={root.depth}")
+    # Evaluate the tree
+    print(f"{root} = {root():.2f} d={root.depth}")
 
-for _ in range(5):
-    root.permute()
+    for _ in range(5):
+        root.permute()
     print(f"{root} = {root():.2f}")
-
-
