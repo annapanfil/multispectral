@@ -1,3 +1,4 @@
+import sys
 import cv2
 import os
 
@@ -9,8 +10,9 @@ import yaml
 from detection import find_pool
 
 
-def draw_boxes_one_class(image, label_path, class_names, filter_class, color, image_shape, correction, scale):
+def draw_boxes_one_class(pool_image, image_path, label_path, filter_class, color, image_shape, correction, scale):
     """ Draw bounding boxes in yolo format on image"""
+    image = cv2.cvtColor(cv2.imread(image_path), cv2.COLOR_BGR2RGB)
     image_height, image_width = image_shape
 
     i=0
@@ -29,6 +31,8 @@ def draw_boxes_one_class(image, label_path, class_names, filter_class, color, im
             y1 = int((center_y - (height / 2)) * image_height)
             y2 = int((center_y + (height / 2)) * image_height)
 
+            trash = image[y1:y2, x1:x2]
+
             # convert from image coordinates to pool coordinates and to common pool coordinates
             x1 = int((x1 - correction[0]) * scale[0])
             x2 = int((x2 - correction[0]) * scale[0])
@@ -36,12 +40,18 @@ def draw_boxes_one_class(image, label_path, class_names, filter_class, color, im
             y2 = int((y2 - correction[1]) * scale[1])
                     
             # Draw bounding box and label
-            cv2.rectangle(image, (x1, y1), (x2,y2), color, 5)
-            # cv2.putText(image, class_names[class_id], (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 2, color, 2)
+            cv2.rectangle(pool_image, (x1, y1), (x2,y2), color, 5)
+
+            x1 = max(0, x1)
+            y1 = max(0, y1)
+            x2 = min(pool_image.shape[1], x2)
+            y2 = min(pool_image.shape[0], y2)
+            if trash.size > 0 and x2 - x1 > 0 and y2 - y1 > 0:
+                pool_image[y1:y2, x1:x2] = cv2.resize(trash, (x2 - x1, y2 - y1))
 
             i += 1
 
-    return image, i
+    return pool_image, i
 
 def get_correction_and_scale(image_fn, desired_width, desired_height):
     # find the pool
@@ -69,9 +79,14 @@ def get_correction_and_scale(image_fn, desired_width, desired_height):
 
 if __name__ == "__main__":
     # get filenames
-    path = "/home/anna/Datasets/annotated/bags"
-    groups = ["9:00", "12:00", "15:00", "5_bags"]
+    if len(sys.argv) < 3:
+        print("Usage: python3 check_annotations.py [dataset_name] [groups]")
+        sys.exit(1)
+
+    path = f"/home/anna/Datasets/annotated/{sys.argv[1]}"
+    groups = sys.argv[2:] #["9:00", "12:00", "15:00", "5_bags"]
     image_fns = [image_fn for image_fn in os.listdir(f"{path}/images/train") if image_fn.endswith("_meanRE.png")]
+    image_fns.sort()
 
     with open(f"{path}/data_config.yaml", "r") as file:
         config = yaml.safe_load(file)
@@ -80,17 +95,19 @@ if __name__ == "__main__":
     pool_width = 2450
     pool_height = int(2.5/5.4 * pool_width)
 
-    palette = [tuple(int(c * 255) for c in color) for color in plt.cm.tab20.colors]
+    raw_palette = plt.cm.tab20.colors + plt.cm.tab20b.colors
+    palette = [tuple(int(c * 255) for c in color) for color in raw_palette]
 
     for group in groups:
         group_fns = [fn for fn in image_fns if group in fn]
         
         print(f"Processing {group} group with {len(group_fns)} images")
-        if len(group_fns) > 20: print("Not enough distinct colours. Reusing colours.")
+        
+        if len(group_fns) > len(palette): print("Not enough distinct colours. Reusing colours.")
 
         for class_id in range(len(config["names"])):
             image_bbs = np.zeros((pool_height, pool_width, 3), dtype=np.uint8) # representing the pool
-            altitudes = []
+            photo_names = []
             n_objects = []
 
             for i, image_fn in enumerate(group_fns):
@@ -98,28 +115,29 @@ if __name__ == "__main__":
 
                 # show bbs
                 image_bbs, n_obj = draw_boxes_one_class(image_bbs,
-                                    f"{path}/labels_joined/train/{image_fn.replace('.png', '.txt')}",
-                                    config["names"],
+                                    f"{path}/images/train/{image_fn.replace('_meanRE', '_RGB')}",
+                                    f"{path}/labels/train/{image_fn.replace('.png', '.txt')}",
                                     class_id,
-                                    palette[i%20],
+                                    palette[i%len(palette)],
                                     image_shape,
                                     correction,
                                     scale
                                     )
                 
-                altitudes.append(int(image_fn.split("_")[-2])) 
+                photo_names.append("_".join(image_fn.split("_")[-3:-1])) 
                 n_objects.append(n_obj)
 
 
             # plot if the number of items is not the same in all the images
-            wrong_n_obj = [altitude for altitude, n_obj in zip(altitudes, n_objects) if n_obj < max(n_objects)]
+            wrong_n_obj = [photo for photo, n_obj in zip(photo_names, n_objects) if n_obj < max(n_objects)]
+            print(f"{config['names'][class_id]}: {max(n_objects)} objects")
 
             if len(wrong_n_obj) > 0:
                 plt.figure(figsize=(20,8))
                 legend_elements = [
-                    Patch(facecolor=color, edgecolor='black', label=f'altitude {altitude}, objects: {n_obj}') for color, altitude, n_obj in zip(plt.cm.tab20.colors[:i+1], altitudes, n_objects)]
+                    Patch(facecolor=color, edgecolor='black', label=f'photo {name}, objects: {n_obj}') for color, name, n_obj in zip(raw_palette[:i+1], photo_names, n_objects)]
                 plt.title(f"Group {group} {config['names'][class_id]}")
-                plt.legend(handles=legend_elements, loc='center left', bbox_to_anchor=(1, 0.5), title=f"Less objects in images: {wrong_n_obj}")
+                plt.legend(handles=legend_elements, loc='center left', bbox_to_anchor=(1, 0.5))
                 plt.imshow(image_bbs)
                 plt.axis('off')
                 plt.show()
