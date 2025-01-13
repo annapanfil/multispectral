@@ -1,0 +1,17 @@
+params:
+  altitude: 20
+  image_numbers:
+  - 53
+  - 54
+  - 55
+  - 57
+  - 58
+  - 59
+  - 60
+  - 61
+paths:
+  channels_output: /home/anna/Datasets/for_annotation/mandrac/green_marina/20/
+  images: /home/anna/Datasets/mandrac_2024_12_6/images/0007SET
+  output: /home/anna/Datasets/mandrac_2024_12_6/chosen_images/green_marina/20/
+  panel_image_nr: '0000'
+  warp_matrices: /home/anna/Datasets/annotated/warp_matrices

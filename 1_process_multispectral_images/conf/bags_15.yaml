@@ -1,0 +1,10 @@
+paths:
+  images: /home/anna/Datasets/pool/bags/0035SET/000
+  warp_matrices: /home/anna/code/1_process_multispectral_images/out/warp_matrices_reference
+  panel_image_nr: "0000"
+  output: /home/anna/Datasets/pool/bags/out/15:00
+  channels_output: /home/anna/Datasets/for_annotation/bags_15/
+
+params:
+  altitude_change: 45
+  image_numbers: [4, 7, 9, 14, 17, 19]

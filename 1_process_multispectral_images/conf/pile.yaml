@@ -1,0 +1,10 @@
+paths:
+  images: /home/anna/Datasets/pool/realistic_trash/0031SET/000
+  warp_matrices: /home/anna/code/1_process_multispectral_images/out/warp_matrices_reference
+  panel_image_nr: "0000"
+  output: /home/anna/Datasets/pool/realistic_trash/out/
+  channels_output: /home/anna/Datasets/for_annotation/pile/
+
+params:
+  altitude_change: [51, 55, 51, 54]
+  image_numbers: [3, 5, 8, 13]

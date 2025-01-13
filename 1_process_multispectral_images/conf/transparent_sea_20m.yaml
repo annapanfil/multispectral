@@ -1,0 +1,29 @@
+params:
+  altitude: 20
+  image_numbers:
+  - 105
+  - 106
+  - 107
+  - 108
+  - 109
+  - 110
+  - 111
+  - 112
+  - 113
+  - 114
+  - 115
+  - 116
+  - 117
+  - 118
+  - 308
+  - 309
+  - 310
+  - 311
+  - 312
+  - 313
+paths:
+  channels_output: /home/anna/Datasets/for_annotation/mandrac/transparent_sea/20/
+  images: /home/anna/Datasets/mandrac_2024_12_6/images/0002SET
+  output: /home/anna/Datasets/mandrac_2024_12_6/chosen_images/transparent_sea/20/
+  panel_image_nr: '0000'
+  warp_matrices: /home/anna/Datasets/annotated/warp_matrices

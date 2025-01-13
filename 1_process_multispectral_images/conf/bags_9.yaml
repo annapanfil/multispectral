@@ -1,0 +1,12 @@
+paths:
+  images: /home/anna/Datasets/pool/bags/0036SET/
+  warp_matrices: /home/anna/code/1_process_multispectral_images/out/warp_matrices_reference
+  panel_image_nr: "0001"
+  output: /home/anna/Datasets/pool/bags/out/9:00
+  channels_output: /home/anna/Datasets/for_annotation/bags_9/
+
+params:
+  altitude_change: 50
+  image_numbers: [4, 6, 10, 12, 18, 19]
+
+# ${hydra:runtime.cwd}    

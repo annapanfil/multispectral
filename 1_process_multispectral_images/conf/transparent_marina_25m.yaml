@@ -1,0 +1,26 @@
+params:
+  altitude: 25
+  image_numbers:
+  - 77
+  - 78
+  - 79
+  - 80
+  - 81
+  - 82
+  - 83
+  - 84
+  - 85
+  - 171
+  - 172
+  - 173
+  - 174
+  - 175
+  - 176
+  - 177
+  - 178
+paths:
+  channels_output: /home/anna/Datasets/for_annotation/mandrac/transparent_marina/25/
+  images: /home/anna/Datasets/mandrac_2024_12_6/images/0009SET
+  output: /home/anna/Datasets/mandrac_2024_12_6/chosen_images/transparent_marina/25/
+  panel_image_nr: '0000'
+  warp_matrices: /home/anna/Datasets/annotated/warp_matrices
