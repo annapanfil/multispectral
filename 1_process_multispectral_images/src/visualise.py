@@ -6,6 +6,7 @@ import micasense.imageutils as imageutils
 
 CHANNELS = {'B': 0, 'G': 1, 'R': 2, 'NIR': 3, 'RE': 4}
 CHANNEL_NAMES = ["B", "G", "R", "NIR", "RE"]
+EPSILON = 1e-10 # not to divide by zero
 
 
 def show_image(image, title="Image", figsize=(30,23), cmap='gray'):
@@ -38,23 +39,24 @@ def get_components_view(img_aligned, band_indices, gamma=2):
 
 def get_index_view(img_aligned, band1, band2):
     """Visualise image using two provided band indices. Used for NDVI, NDWI and other similar indices with a formula: (band1 - band2) / (band1 + band2)"""
+
     for i in [band1, band2]:
         img_aligned[:,:,i] =  imageutils.normalize(img_aligned[:,:,i])
 
-    ndvi_image = (img_aligned[:, :, band1] - img_aligned[:, :, band2]) / (img_aligned[:, :, band1] + img_aligned[:, :, band2])
+    ndvi_image = (img_aligned[:, :, band1] - img_aligned[:, :, band2]) / (img_aligned[:, :, band1] + img_aligned[:, :, band2] + EPSILON)
     ndvi_image = (ndvi_image - np.min(ndvi_image)) / (np.max(ndvi_image) - np.min(ndvi_image))
     return ndvi_image
 
 
 def get_SR_image(img_aligned):
     """Get normalised simple ratio (SR) image."""
-    sr_image = img_aligned[:, :, CHANNELS["NIR"]] / img_aligned[:, :, CHANNELS["R"]]
+    sr_image = img_aligned[:, :, CHANNELS["NIR"]] / (img_aligned[:, :, CHANNELS["R"]] + EPSILON)
     sr_image = (sr_image - np.min(sr_image)) / (np.max(sr_image) - np.min(sr_image))
     return sr_image
 
 def get_PI_image(img_aligned):
     """Get normalised plastic index (PI) image."""
-    pi_image = img_aligned[:, :, CHANNELS["NIR"]] / (img_aligned[:, :, CHANNELS["NIR"]] + img_aligned[:, :, CHANNELS["R"]])
+    pi_image = img_aligned[:, :, CHANNELS["NIR"]] / (img_aligned[:, :, CHANNELS["NIR"]] + img_aligned[:, :, CHANNELS["R"]] + EPSILON)
     pi_image = (pi_image - np.min(pi_image)) / (np.max(pi_image) - np.min(pi_image))
     return pi_image
 
@@ -72,6 +74,7 @@ def get_custom_index(formula: str, img_aligned: np.array) -> np.array:
                         "RE": img_aligned[:, :, CHANNELS["RE"]],
                         "NIR": img_aligned[:, :, CHANNELS["NIR"]]}
         index = eval(formula, {"__builtins__": None}, allowed_vars)
+        index = np.where(np.isnan(index), 1, index) # replace division by zero by the highest value
         index = (index - np.min(index)) / (np.max(index) - np.min(index))
         return index
     except Exception as e:

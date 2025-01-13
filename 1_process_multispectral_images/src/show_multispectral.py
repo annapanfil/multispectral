@@ -6,19 +6,19 @@ import os
 
 import exiftool
 
-from load import load_image_set, get_irradiance, align_from_saved_matrices
+from load import load_aligned, load_not_aligned
 from gui import show_components_interactive
 
 def get_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Align photos from multispectral camera")
     parser.add_argument('--image_dir', '-d', type=str, required=True, help='Path to the folder with images')
-    parser.add_argument('--set_nr', '-s', type=int, required=False, help='Set number (only for specifying altitude difference)')
     parser.add_argument('--image_nr', '-i', type=int, required=True, help='Photo number')
     parser.add_argument('--panel_image_nr', '-p', type=int, required=False, help='Panel (QR code) image number')
     parser.add_argument('--output_dir', '-o', type=str, required=False, help='Output folder, if not specified, only displaying')
     parser.add_argument('--verbose', '-v', type=int, required=False, help="If to show photos in the middle of the process (0-dont show anything, 1-show only composites, 2-show everything)", default=1)
     parser.add_argument('--altitude', '-a', type=int, required=False, help="Altitude from which the photo was taken")
+    parser.add_argument('--set_nr', '-s', type=int, required=False, help='Set number (only for specifying altitude difference)')
 
     args = parser.parse_args()
     if args.panel_image_nr is not None:
@@ -36,26 +36,24 @@ def get_args():
     # Wyświetlamy, gdzie znaleziono plik
     print(f"Found image at: {image_path}")
 
-
     # get the altitude from the known images if not specified
-    if args.altitude is None and args.set_nr is None:
-        raise LookupError("You must specify the altitude or at least the set number.")
-
     if args.altitude is None:
         with exiftool.ExifToolHelper() as et:
             try:
-                altitude = et.get_tags(image_path, ["Composite:GPSAltitude"])[0]["Composite:GPSAltitude"]
+                args.altitude = et.get_tags(image_path, ["Composite:GPSAltitude"])[0]["Composite:GPSAltitude"]
             except (exiftool.exceptions.ExifToolExecuteError, KeyError):
-                raise LookupError(f"Cannot read altitude from the file {image_path} You must specify the altitude.")
+                print(Warning(f"Cannot read altitude from the file {image_path}. Assuming the files are already aligned. If not, you must specify the altitude."))
         
-        differences = {33: 55, 34: 54, 35: 45, 36: 50, 41: 35, 45: 59, 46: 55, 49: 47, 50: 47, 51: 46}
-        if args.set_nr is None:
-            print(Warning(f"No set number specified. Using the altitude from the file ({altitude} m), without any change."))
+        if args.altitude is not None:
+            differences = {33: 55, 34: 54, 35: 45, 36: 50, 41: 35, 45: 59, 46: 55, 49: 47, 50: 47, 51: 46}
+            if args.set_nr is None:
+                print(Warning(f"No set number specified. Using the altitude from the file ({args.altitude} m), without any change."))
 
-        if args.set_nr not in differences.keys():
-            raise LookupError(f"Not known altitude difference for set {args.set_nr}. You must specify the altitude or set the difference in the code.")
-    
-        args.altitude = altitude - differences[args.set_nr]
+            elif args.set_nr not in differences.keys():
+                raise LookupError(f"Not known altitude difference for set {args.set_nr}. You must specify the altitude or set the difference in the code.")
+        
+            else:
+                args.altitude = args.altitude - differences[args.set_nr]
 
     # Create output directory if specified
     output = args.output_dir
@@ -77,15 +75,22 @@ if __name__ == "__main__":
     RESOLUTION = "full"
     args, out_fn = get_args()
 
-    img_capt, panel_capt = load_image_set(
-        args.image_dir,
-        f"{args.image_nr:04}", 
-        args.panel_image_nr
-    )
+    
+    try: 
+        if args.altitude is None:
+            raise(ValueError)
 
-    print(f"Loaded {len(img_capt.images)} images with altitude {args.altitude}\nAligning images...")
+        im_aligned = load_not_aligned(
+                args.image_dir,
+                f"{args.image_nr:04}", 
+                args.panel_image_nr,
+                args.altitude)
+        
+    except ValueError:
+        print("Assuming the image is already aligned")
+        im_aligned = load_aligned(
+            args.image_dir,
+            f"{args.image_nr:04}"
+        )
 
-    img_type = get_irradiance(img_capt, panel_capt)
-
-    im_aligned = align_from_saved_matrices(img_capt, img_type, "/home/anna/code/process_multispectral_images/out/warp_matrices_reference/", args.altitude, True)
     show_components_interactive(im_aligned, img_no=f"{args.image_nr:04}")

@@ -12,6 +12,28 @@ sys.path.append('/home/anna/code/libraries/imageprocessing')
 import micasense.capture as capture
 import micasense.imageutils as imageutils
 
+def load_not_aligned(image_dir: str, image_nr: str, panel_image_nr: int, altitude: int) -> np.ndarray:
+        img_capt, panel_capt = load_image_set(
+            image_dir,
+            image_nr, 
+            panel_image_nr
+        )
+
+        print(f"Loaded {len(img_capt.images)} images with altitude {altitude}\nAligning images...")
+
+        img_type = get_irradiance(img_capt, panel_capt)
+
+        im_aligned = align_from_saved_matrices(img_capt, img_type, "/home/anna/code/1_process_multispectral_images/out/warp_matrices_reference/", altitude, True)
+        return im_aligned
+
+
+def load_aligned(image_path, image_number) -> np.ndarray:
+    img_names = find_images(Path(image_path), image_number)
+    images = [cv2.imread(x, cv2.IMREAD_GRAYSCALE) for x in img_names]
+    images = np.stack(images, axis=-1, dtype=np.float32)
+
+    return images
+
 def get_altitude(cfg, image_nr, i):
     """Read altitude based on the information from exif and config file"""
     if "altitude" in cfg.params:
@@ -34,7 +56,7 @@ def find_images(image_path:Path, image_number:str, panel=False, with_set=None):
 
     image_names = list(image_path.glob('IMG_'+ image_number + '_*.tif*'))
     if image_names == []:
-        image_names = list(image_path.glob(f"*_{image_number}_*_ch*.tif*"))
+        image_names = sorted(list(image_path.glob(f"*_{image_number}_*_ch*.tif*")))
 
     image_names = [x.as_posix() for x in image_names]
    
