@@ -1,5 +1,12 @@
 out/*
 src/outputs/*
+src/runs/*
+src/datasets/*
+outputs/*
 input/*
 .vscode/*
 */__pycache__/*
+
+*.png
+*.jpg
+*.txt

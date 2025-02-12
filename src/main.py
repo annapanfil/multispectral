@@ -24,7 +24,6 @@ def main(cfg):
 
     for im_name in im_names:
         image = cv2.imread(f"{cfg.paths.base}/{im_name}", cv2.IMREAD_GRAYSCALE)    
-        print(image.shape)
         altitude = int(im_name.split("_")[-2])  # Extract the altitude from the image name
 
         blob_contours, bbs, pool, dog_image, mask = find_litter(image.copy(), im_name, 
@@ -36,13 +35,9 @@ def main(cfg):
         
         piles_contours, piles_rectangles, piles_rectangles_for_drawing = group_contours(blob_contours, 70, image[pool.y_b:pool.y_t, pool.x_l:pool.x_r].copy())
 
-
-
-
         piles_rectangles_abs = [[pool2abs_point(center, pool), dims, angle] for center, dims, angle in piles_rectangles]
         
         sizes = get_real_piles_size(image.shape[:2], altitude-POOL_HEIGHT, np.deg2rad(49.6), np.deg2rad(38.3), piles_rectangles_abs)
-                            # [[((pool.x_r - pool.x_l)/2, (pool.y_t - pool.y_b)/2), (pool.x_r - pool.x_l, pool.y_t - pool.y_b), 90]])
 
 
 

@@ -1,4 +1,7 @@
+#!/home/anna/miniconda3/envs/micasense/bin/python3
+
 import sys
+from typing import Counter
 import cv2
 import os
 
@@ -9,6 +12,7 @@ import yaml
 
 from detection import find_pool
 
+"""Display gui showing all the items from each class on all the photos from the group. Create the summary for each photo with the number of items of each class. Save everything to out directory."""
 
 def draw_boxes_one_class(pool_image, image_path, label_path, filter_class, color, image_shape, correction, scale):
     """ Draw bounding boxes in yolo format on image"""
@@ -53,7 +57,34 @@ def draw_boxes_one_class(pool_image, image_path, label_path, filter_class, color
 
     return pool_image, i
 
-def get_correction_and_scale(image_fn, desired_width, desired_height):
+
+def get_wrong_on_each_photo(wrong, group, out_path="out"):
+    with open(f"{out_path}/{group}_summary.txt", "w") as f:
+        for photo in wrong:
+            f.write(f"\nPhoto {photo}:\n")
+            if len(wrong[photo]) == 0:
+                f.write("OK\n")
+            else:
+                for name, n_obj, correct_n_obj in wrong[photo]:
+                    f.write(f"{n_obj} {name} instead of {correct_n_obj} ({'too little' if n_obj < correct_n_obj else 'too many'})\n")
+    print(f"Summary saved to {out_path}/{group}_summary.txt")
+
+
+def show_class_in_normalised_pool(photo_names, n_objects, raw_palette, image_bbs, group, config, class_id, out_path="out"):
+    plt.figure(figsize=(20,8))
+    legend_elements = [
+        Patch(facecolor=color, edgecolor='black', label=f'photo {name}, objects: {n_obj}') for color, name, n_obj in zip(raw_palette[:i+1], photo_names, n_objects)]
+    plt.title(f"Group {group} {config['names'][class_id]}")
+    plt.legend(handles=legend_elements, loc='center left', bbox_to_anchor=(1, 0.5))
+    plt.imshow(image_bbs)
+    plt.axis('off')
+
+    plt.savefig(f"{out_path}/{group}_{config['names'][class_id]}.png")
+    print(f"Saved to {out_path}/{group}_{config['names'][class_id]}.png")
+    # plt.show()
+
+
+def get_correction_and_scale(path, image_fn, desired_width, desired_height):
     # find the pool
     image = cv2.imread(f"{path}/images/train/{image_fn}", cv2.COLOR_BGR2GRAY)
     altitude = int(image_fn.split("_")[-2]) 
@@ -79,12 +110,13 @@ def get_correction_and_scale(image_fn, desired_width, desired_height):
 
 if __name__ == "__main__":
     # get filenames
-    if len(sys.argv) < 3:
-        print("Usage: python3 check_annotations.py [dataset_name] [groups]")
+    if len(sys.argv) < 4:
+        print("Usage: python3 check_annotations.py [dataset_name] [out_path] [groups]")
         sys.exit(1)
 
     path = f"/home/anna/Datasets/annotated/{sys.argv[1]}"
-    groups = sys.argv[2:] #["9:00", "12:00", "15:00", "5_bags"]
+    out_path = sys.argv[2]
+    groups = sys.argv[3:] #["9:00", "12:00", "15:00", "5_bags"]
     image_fns = [image_fn for image_fn in os.listdir(f"{path}/images/train") if image_fn.endswith("_meanRE.png")]
     image_fns.sort()
 
@@ -98,20 +130,28 @@ if __name__ == "__main__":
     raw_palette = plt.cm.tab20.colors + plt.cm.tab20b.colors
     palette = [tuple(int(c * 255) for c in color) for color in raw_palette]
 
+
     for group in groups:
         group_fns = [fn for fn in image_fns if group in fn]
+        photo_names = [("_".join(image_fn.split("_")[-3:-1])) for image_fn in group_fns]
+
+        if len(group_fns) == 0:
+            print(f"No images found for group {group}. Check the group name.")
+            continue
         
         print(f"Processing {group} group with {len(group_fns)} images")
+        
+        wrong = {photo: [] for photo in photo_names}
+        objects = {}
         
         if len(group_fns) > len(palette): print("Not enough distinct colours. Reusing colours.")
 
         for class_id in range(len(config["names"])):
             image_bbs = np.zeros((pool_height, pool_width, 3), dtype=np.uint8) # representing the pool
-            photo_names = []
             n_objects = []
 
             for i, image_fn in enumerate(group_fns):
-                correction, scale = get_correction_and_scale(image_fn, pool_width, pool_height)
+                correction, scale = get_correction_and_scale(path, image_fn, pool_width, pool_height)
 
                 # show bbs
                 image_bbs, n_obj = draw_boxes_one_class(image_bbs,
@@ -123,21 +163,28 @@ if __name__ == "__main__":
                                     correction,
                                     scale
                                     )
-                
-                photo_names.append("_".join(image_fn.split("_")[-3:-1])) 
+        
                 n_objects.append(n_obj)
 
 
             # plot if the number of items is not the same in all the images
-            wrong_n_obj = [photo for photo, n_obj in zip(photo_names, n_objects) if n_obj < max(n_objects)]
-            print(f"{config['names'][class_id]}: {max(n_objects)} objects")
+            most_common_n = Counter(n_objects).most_common(1)[0][0]
+            objects[class_id] = (most_common_n, min(n_objects), max(n_objects))
 
-            if len(wrong_n_obj) > 0:
-                plt.figure(figsize=(20,8))
-                legend_elements = [
-                    Patch(facecolor=color, edgecolor='black', label=f'photo {name}, objects: {n_obj}') for color, name, n_obj in zip(raw_palette[:i+1], photo_names, n_objects)]
-                plt.title(f"Group {group} {config['names'][class_id]}")
-                plt.legend(handles=legend_elements, loc='center left', bbox_to_anchor=(1, 0.5))
-                plt.imshow(image_bbs)
-                plt.axis('off')
-                plt.show()
+            wrong_n_obj = [(photo, n_obj) for photo, n_obj in zip(photo_names, n_objects) if n_obj != most_common_n]
+
+            for photo, n_obj in wrong_n_obj:
+                wrong[photo].append((config["names"][class_id], n_obj, most_common_n))
+ 
+            print(f"{config['names'][class_id]}: {most_common_n} objects ({min(n_objects)}-{max(n_objects)})")
+
+            # if len(wrong_n_obj) > 0:
+            show_class_in_normalised_pool(photo_names, n_objects, raw_palette, image_bbs, group, config, class_id, out_path)
+            
+
+        get_wrong_on_each_photo(wrong, group, out_path)
+
+        # save the number of objects of each class for the group
+        with open(f"{out_path}/{group}_objects.txt", "w") as f:
+            for (class_id, n_obj) in objects.items():
+                f.write(f"{config['names'][class_id]}: {n_obj[0]} objects ({n_obj[1]} - {n_obj[2]})\n")

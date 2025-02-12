@@ -1,6 +1,8 @@
+#!/home/anna/miniconda3/envs/micasense/bin/python3
+
 import os
 import sys
-
+"""Get the bounding boxes from all channels and merge them into one file, assigned to each channel."""
 
 def merge_bbs_from_all_channels(path:str, common_fn:str, out_path:str):
     files = [file for file in os.listdir(path) if file.startswith(common_fn)]
