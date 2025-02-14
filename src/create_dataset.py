@@ -1,6 +1,8 @@
+import random
 import cv2
 import os
 import pandas as pd
+from sklearn.model_selection import train_test_split
 import shutil
 import yaml
 
@@ -52,16 +54,19 @@ def read_all_datasets(dataset_path = "/home/anna/Datasets/annotated",
     return df
 
 
-def create_files(dataset_path: str, df: pd.DataFrame, split: str):
+def create_files(dataset_path: str, df: pd.DataFrame, split: str, new_image_size: tuple):
     print("Creating files for", split, "set ...")
     df["new_image_path"] = df["image_path"].apply(lambda x: os.path.join(dataset_path, "images", split, x.split("/")[-1]))
     df["new_annot_path"] = df["new_image_path"].apply(lambda x: x.replace("images", "labels").replace(".png", ".txt").replace(".tiff", ".txt"))
 
     for i, row in df.iterrows():
-        shutil.copy(row["image_path"], row["new_image_path"])
+        # shutil.copy(row["image_path"], row["new_image_path"])
+        image = cv2.imread(row["image_path"])
+        height, width = image.shape[:2]
 
-        img = cv2.imread(row["image_path"])
-        height, width = img.shape[:2]
+        image = cv2.resize(image, new_image_size)
+        cv2.imwrite(row["new_image_path"], image)
+
 
         with open(row["new_annot_path"], "w") as f:
             for pile in row["piles"]:
@@ -72,9 +77,9 @@ def create_files(dataset_path: str, df: pd.DataFrame, split: str):
 
 if __name__ == "__main__":
     pile_margin = 13
-    new_dataset_path = "/home/anna/Datasets/created/piles"
-    train_sets = ["ghost-net", "bags_9", "bags_12", "black-bed_15", "mandrac-green-sea", "mandrac-transparent-marina"]
-
+    new_dataset_path = "/home/anna/Datasets/created/piles_m13_random"
+    new_image_size = (800, 608)
+    
     ################################################
     print("Reading images from datasets ...")
     df = read_all_datasets()
@@ -85,22 +90,58 @@ if __name__ == "__main__":
     print("Total images:", len(df), "Total piles:", df["piles"].apply(len).sum())
     print("Splitting data...")
 
+    ###############################################
+    # # random split
+    # train_df, test_val = train_test_split(df, test_size=0.4, random_state=42)
+    # test_df, val_df = train_test_split(test_val, test_size=0.5, random_state=42)
+    
+    # hand split
+    train_sets = ["ghost-net", "bags_9","black-bed_15", "mandrac-green-sea", "mandrac-transparent-marina"]
+    test_sets = ["green-net", "bags_12"] # and some of mandrac-green-sea with the shore
+    from_train_to_test = [113, 123, 93, 110, 120, 119] #[108, 117, 109, 99, 100]
+
     train = df[df["image_path"].str.contains("|".join(train_sets), regex=True)].index
-    test = df[~df.index.isin(train)].index
+    test = df[df["image_path"].str.contains("|".join(test_sets), regex=True)].index
+    val = df[~df.index.isin(train.union(test))].index
+
+    train.drop(from_train_to_test),
+    test.append(pd.Index(from_train_to_test))
 
     train_df = df.loc[train][["image_path", "piles"]]
     test_df = df.loc[test][["image_path", "piles"]]
+    val_df = df.loc[val][["image_path", "piles"]]
+    ################################################
 
-    print("Train size:", len(train_df), "Test size:", len(test_df))
+
+    print(f"""
+        Train:
+            - Images: {len(train_df)} ({len(train_df) / len(df) * 100:.2f}%)
+            - Piles: {train_df["piles"].apply(len).sum()} ({train_df["piles"].apply(len).sum() / df["piles"].apply(len).sum() * 100:.2f}%)
+        Val:
+            - Images: {len(val_df)} ({len(val_df) / len(df) * 100:.2f}%)
+            - Piles: {val_df["piles"].apply(len).sum()} ({val_df["piles"].apply(len).sum() / df["piles"].apply(len).sum() * 100:.2f}%)
+        Test:
+            - Images: {len(test_df)} ({len(test_df) / len(df) * 100:.2f}%)
+            - Piles: {test_df["piles"].apply(len).sum()} ({test_df["piles"].apply(len).sum() / df["piles"].apply(len).sum() * 100:.2f}%)
+        """)
+    
 
     if not os.path.exists(os.path.join(new_dataset_path)):
-        os.makedirs(os.path.join(new_dataset_path, "images", "train"))
-        os.makedirs(os.path.join(new_dataset_path, "images", "test"))
-        os.makedirs(os.path.join(new_dataset_path, "labels", "train"))
-        os.makedirs(os.path.join(new_dataset_path, "labels", "test"))
+        for split in ["train", "val", "test"]:
+            os.makedirs(os.path.join(new_dataset_path, "images", split))
+            os.makedirs(os.path.join(new_dataset_path, "labels", split))
 
-    with open(os.path.join(new_dataset_path, "data_config.yaml"), "w") as file:
-        yaml.dump({"names": ["pile"], "nc": 1}, file)
+    dataset_name = new_dataset_path.split("/")[-1]
 
-    create_files(new_dataset_path, train_df, "train")
-    create_files(new_dataset_path, test_df, "test")
+    with open(os.path.join(new_dataset_path, f"{dataset_name}.yaml"), "w") as file:
+        yaml.dump({
+            "train": f"{new_dataset_path}/images/train",
+            "val": f"{new_dataset_path}/images/val",
+            "test": f"{new_dataset_path}/images/test",
+            "names": ["pile"], 
+            "nc": 1
+            }, file)
+
+    create_files(new_dataset_path, train_df, "train", new_image_size)
+    create_files(new_dataset_path, val_df, "val", new_image_size)
+    create_files(new_dataset_path, test_df, "test", new_image_size)
