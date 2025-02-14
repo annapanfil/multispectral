@@ -166,6 +166,34 @@ def find_litter(image: np.array, im_name, sigma: int, dog_threshold: float, size
    return blob_contours, bb_rectangles, pool, dog_image, mask
 
 
+def merge_rectangles(rects: List[Rectangle], margin = 0) -> List[Rectangle]:
+    ### merge rectangles that overlap to bigger rectangles ###
+    merged = [rects[0]]
+
+    for rect in rects[1:]:
+        for m in merged:
+            if m.intersection(rect, margin):
+                merged.remove(m)
+                merged.append(m | rect)
+                break
+        else:
+            merged.append(rect)
+
+    # check if we cant merge any more
+    changed = True
+    while changed:
+        changed = False
+        for i, rect in enumerate(merged):
+            for j, other in enumerate(merged):
+                if i != j and rect.intersection(other, margin):
+                    merged.remove(rect)
+                    merged.remove(other)
+                    merged.append(rect | other)
+                    changed = True
+                    break
+    
+    return merged
+
 
 def group_contours(contours: list, margin:int, image: np.array):
    # enlarge contours

@@ -8,7 +8,6 @@ import hydra
 import cv2
 
 from detection import find_litter, get_real_piles_size, group_contours, pool2abs_point
-from shapes import Rectangle
 
 POOL_HEIGHT = 1.5 #m
 
