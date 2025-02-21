@@ -1,6 +1,0 @@
-paths:
-  #  ls -1 | grep "9:00" | cut -d'_' -f1,2,3,4 | uniq | sed 's/^/"/; s/$/",/' |tr '\n' ' '
-  base: "/home/anna/Datasets/annotated/bags_labeled/"
-  img_type: "meanRE"
-  extension: "png"
-  out: ../out/bags_9
