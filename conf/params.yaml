@@ -1,0 +1,24 @@
+params:
+  # manual
+  # dog_threshold: 0.01
+  # size_max_threshold_perc: 0.25 # as percentage of the pool width
+  # sigma: 16
+
+  # not connected
+  # dog_threshold: 0.0119
+  # size_max_threshold_perc: 0.242
+  # sigma_a: -0.093
+  # sigma_b: 6.947
+
+  # ap@[0.2:0.5]
+  # dog_threshold: 0.005
+  # size_max_threshold_perc: 0.417
+  # sigma_a: -0.056
+  # sigma_b: 8.561
+
+  # ap@[0.4:1]
+  dog_threshold: 0.010
+  size_max_threshold_perc: 0.044
+  sigma_a: -0.149
+  sigma_b: 9.002
+  

@@ -6,6 +6,8 @@
 # outcomes
 *.npy
 *.jpg
+*.png
+*.txt
 process_multispectral_images/out/*
 */__pycache__/*
 *out/
@@ -21,3 +23,11 @@ litter_detection/
 
 #test code
 *test*
+out/*
+src/outputs/*
+src/runs/*
+src/datasets/*
+outputs/*
+input/*
+
+
