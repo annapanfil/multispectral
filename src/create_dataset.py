@@ -10,9 +10,15 @@ from detection import merge_rectangles
 from shapes import Rectangle
 
 
-def read_all_datasets(dataset_path = "/home/anna/Datasets/annotated", 
+def read_all_datasets(dataset_path = "/home/anna/Datasets/annotated",
                       excluded_litter = ["grass_bio_brown", "flake_PE_black", "flake_PE_transparent"],
-                      channel="RGB.png"):
+                      channel="RGB.png") -> pd.DataFrame:
+    """ Read every annotation in the every image of certain path from subcatalogues of dataset_path
+    @param excluded_litter – litter with this classes is not included in the result
+    @param channel – taking images of this channel as a base
+    @return dataframe with subdataset, image_path, "annot_path" – path to annotation file, annots – all the Rectangles corresponding to annotated litter 
+    """
+
     subdatasets = next(os.walk(dataset_path))[1]
     subdatasets.remove("warp_matrices")
 
@@ -54,7 +60,14 @@ def read_all_datasets(dataset_path = "/home/anna/Datasets/annotated",
     return df
 
 
-def create_files(dataset_path: str, df: pd.DataFrame, split: str, new_image_size: tuple):
+def create_files(dataset_path: str, df: pd.DataFrame, split: str, new_image_size: tuple) -> None:
+    """ Copy images and annotations to the new locations 
+    @param dataset_path – path to directory with new dataset
+    @param df – containd image_path (of the originak image) and "piles" (Rectangles with annotations)
+    @param split – train, test or val (or other)
+    @param new_image_size – values to resize the image with
+    """
+
     print("Creating files for", split, "set ...")
     df["new_image_path"] = df["image_path"].apply(lambda x: os.path.join(dataset_path, "images", split, x.split("/")[-1]))
     df["new_annot_path"] = df["new_image_path"].apply(lambda x: x.replace("images", "labels").replace(".png", ".txt").replace(".tiff", ".txt"))
@@ -75,14 +88,51 @@ def create_files(dataset_path: str, df: pd.DataFrame, split: str, new_image_size
         # print("created files for", row["new_image_path"].split("/")[-1])
 
 
+def export_splits(train_df, val_df, test_df, new_dataset_path) -> None:
+    """Create new dataset according to the splits """
+
+    print(f"""
+        Train:
+            - Images: {len(train_df)} ({len(train_df) / len(df) * 100:.2f}%)
+            - Piles: {train_df["piles"].apply(len).sum()} ({train_df["piles"].apply(len).sum() / df["piles"].apply(len).sum() * 100:.2f}%)
+        Val:
+            - Images: {len(val_df)} ({len(val_df) / len(df) * 100:.2f}%)
+            - Piles: {val_df["piles"].apply(len).sum()} ({val_df["piles"].apply(len).sum() / df["piles"].apply(len).sum() * 100:.2f}%)
+        Test:
+            - Images: {len(test_df)} ({len(test_df) / len(df) * 100:.2f}%)
+            - Piles: {test_df["piles"].apply(len).sum()} ({test_df["piles"].apply(len).sum() / df["piles"].apply(len).sum() * 100:.2f}%)
+        """)
+    
+
+    if not os.path.exists(new_dataset_path):
+        for split in ["train", "val", "test"]:
+            os.makedirs(os.path.join(new_dataset_path, "images", split))
+            os.makedirs(os.path.join(new_dataset_path, "labels", split))
+
+    dataset_name = new_dataset_path.split("/")[-1]
+
+    with open(os.path.join(new_dataset_path, f"{dataset_name}.yaml"), "w") as file:
+        yaml.dump({
+            "train": f"{new_dataset_path}/images/train",
+            "val": f"{new_dataset_path}/images/val",
+            "test": f"{new_dataset_path}/images/test",
+            "names": ["pile"], 
+            "nc": 1
+            }, file)
+
+    create_files(new_dataset_path, train_df, "train", new_image_size)
+    create_files(new_dataset_path, val_df, "val", new_image_size)
+    create_files(new_dataset_path, test_df, "test", new_image_size)
+
 if __name__ == "__main__":
-    pile_margin = 13
-    new_dataset_path = "/home/anna/Datasets/created/piles_m13_random"
+    """Read the annotated images, merge piles and export them to a new daatset with train, test, val splits """
+
+    pile_margin = 13 # litter distant by this number of pixels will be merged to pile
     new_image_size = (800, 608)
     
     ################################################
     print("Reading images from datasets ...")
-    df = read_all_datasets()
+    df = read_all_datasets(channel="RGB.png")
 
     print("Merging rectangles ...")
     df["piles"] = df["annots"].apply(lambda x: merge_rectangles(x, pile_margin))
@@ -91,7 +141,9 @@ if __name__ == "__main__":
     print("Splitting data...")
 
     ###############################################
-    # # random split
+    new_dataset_path = "/home/anna/Datasets/created/piles_m13"
+
+    # random split
     # train_df, test_val = train_test_split(df, test_size=0.4, random_state=42)
     # test_df, val_df = train_test_split(test_val, test_size=0.5, random_state=42)
     
@@ -112,36 +164,6 @@ if __name__ == "__main__":
     val_df = df.loc[val][["image_path", "piles"]]
     ################################################
 
+    export_splits(train_df, val_df, test_df, new_dataset_path)
 
-    print(f"""
-        Train:
-            - Images: {len(train_df)} ({len(train_df) / len(df) * 100:.2f}%)
-            - Piles: {train_df["piles"].apply(len).sum()} ({train_df["piles"].apply(len).sum() / df["piles"].apply(len).sum() * 100:.2f}%)
-        Val:
-            - Images: {len(val_df)} ({len(val_df) / len(df) * 100:.2f}%)
-            - Piles: {val_df["piles"].apply(len).sum()} ({val_df["piles"].apply(len).sum() / df["piles"].apply(len).sum() * 100:.2f}%)
-        Test:
-            - Images: {len(test_df)} ({len(test_df) / len(df) * 100:.2f}%)
-            - Piles: {test_df["piles"].apply(len).sum()} ({test_df["piles"].apply(len).sum() / df["piles"].apply(len).sum() * 100:.2f}%)
-        """)
     
-
-    if not os.path.exists(os.path.join(new_dataset_path)):
-        for split in ["train", "val", "test"]:
-            os.makedirs(os.path.join(new_dataset_path, "images", split))
-            os.makedirs(os.path.join(new_dataset_path, "labels", split))
-
-    dataset_name = new_dataset_path.split("/")[-1]
-
-    with open(os.path.join(new_dataset_path, f"{dataset_name}.yaml"), "w") as file:
-        yaml.dump({
-            "train": f"{new_dataset_path}/images/train",
-            "val": f"{new_dataset_path}/images/val",
-            "test": f"{new_dataset_path}/images/test",
-            "names": ["pile"], 
-            "nc": 1
-            }, file)
-
-    create_files(new_dataset_path, train_df, "train", new_image_size)
-    create_files(new_dataset_path, val_df, "val", new_image_size)
-    create_files(new_dataset_path, test_df, "test", new_image_size)
