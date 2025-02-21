@@ -1,3 +1,5 @@
+"""Main file for blob detection and pile size estimation."""
+
 import os
 
 from matplotlib import pyplot as plt
@@ -11,7 +13,7 @@ from detection import find_litter, get_real_piles_size, group_contours, pool2abs
 
 POOL_HEIGHT = 1.5 #m
 
-@hydra.main(config_path="../conf", config_name="testing", version_base=None)
+@hydra.main(config_path="../conf/detection", config_name="testing", version_base=None)
 def main(cfg):
     # print(cfg)
     im_names = [f"{x}_meanRE.png" for x in cfg.paths.im_numbers]

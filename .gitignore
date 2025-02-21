@@ -1,7 +1,6 @@
 # config files
 .ipynb_checkpoints/
 .vscode
-*.yaml
 
 # outcomes
 *.npy
@@ -13,6 +12,14 @@ process_multispectral_images/out/*
 *out/
 *outputs/
 *.pyc
+out/*
+src/outputs/*
+src/detection/runs/*
+src/datasets/*
+
+# inputs
+input/*
+*.pt
 
 
 # imported code
@@ -22,12 +29,4 @@ import-multispectral-images-tutorial/
 litter_detection/
 
 #test code
-*test*
-out/*
-src/outputs/*
-src/runs/*
-src/datasets/*
-outputs/*
-input/*
-
-
+test.ipynb

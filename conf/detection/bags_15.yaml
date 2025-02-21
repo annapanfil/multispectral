@@ -1,0 +1,8 @@
+defaults:
+  - params
+
+paths:
+  #  ls -1 | grep "15:00" | cut -d'_' -f1,2,3,4 | uniq | sed 's/^/"/; s/$/",/' |tr '\n' ' '
+  base: "/home/anna/Datasets/annotated/bags_labeled/images/train"
+  im_numbers: ["997333_15:00_0004_30", "997333_15:00_0007_25", "997333_15:00_0009_20", "997333_15:00_0014_15", "997333_15:00_0017_10", "997333_15:00_0019_6"]
+  out: ../out/bags_15

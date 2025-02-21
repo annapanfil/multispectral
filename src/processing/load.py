@@ -7,14 +7,14 @@ import cv2
 from omegaconf import ListConfig
 import skimage
 from skimage.transform import ProjectiveTransform
-sys.path.append('/home/anna/code/libraries/imageprocessing')
+sys.path.append('/home/anna/code/multispectral/libraries/imageprocessing')
 
 import micasense.capture as capture
 import micasense.imageutils as imageutils
 
 def load_not_aligned(image_dir: str, image_nr: str, panel_image_nr: int, 
                     altitude: int, 
-                    warp_matrices_path: str = "/home/anna/code/1_process_multispectral_images/out/warp_matrices_reference/"
+                    warp_matrices_path: str = "/home/anna/code/multispectral/out/warp_matrices_reference/"
                     ) -> np.ndarray:
         img_capt, panel_capt = load_image_set(
             image_dir,
@@ -185,7 +185,7 @@ def align_rig_relatives(capt, img_type):
 
     return im_aligned
 
-def align_SIFT(capture, img_type, irradiance_list, matrices_fn="out/warp_matrices_SIFT.npy", verbose=0):
+def align_SIFT(capture, img_type, irradiance_list, matrices_fn="./out/warp_matrices_SIFT.npy", verbose=0):
     """
     Align and sharpen multispectral images using SIFT algorithm.
 

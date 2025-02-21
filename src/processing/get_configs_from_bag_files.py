@@ -21,7 +21,7 @@ panel_image_nr = "0000"
 
 
 bag_files_path = "/home/anna/Datasets/mandrac_2024_12_6/bags"
-config_files_path = "conf/"
+config_files_path = "conf/processing"
 topic_name = "/camera/trigger"
 tolerance = 2  # Tolerancja dla point.z
 heights = [10]  # Lista wysokości do sprawdzenia #[10, 15, 20, 25, 30]
@@ -39,7 +39,7 @@ with rosbag.Bag(bag_files_path + "/" + bag_file, 'r') as bag:
                 break
 
 # save actual heights for the images
-with open(f'out/{experiment_name}.txt', 'w') as f:
+with open(f'./out/{experiment_name}_heights.txt', 'w') as f:
     f.write("\n".join([f"{h}m: {len(ids)} photos" for h, ids in frame_ids.items()]) + '\n')
 
     for height in heights:

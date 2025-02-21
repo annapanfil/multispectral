@@ -16,7 +16,7 @@ def threshold_percentiles(image):
     return image
 
 
-@hydra.main(config_path="../conf", config_name="black_bed", version_base=None)
+@hydra.main(config_path="../conf/processing", config_name="black_bed", version_base=None)
 def main(cfg):
     # setup environment
     image_numbers = [f"{x:04}" for x in cfg.params.image_numbers]

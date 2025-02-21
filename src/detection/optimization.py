@@ -172,7 +172,7 @@ def read_bboxes(label_path: str, image_width: int, image_height: int) -> List[Re
     return bboxes
 
 
-@hydra.main(config_path="../conf", config_name="annotated", version_base=None)
+@hydra.main(config_path="../conf/detection", config_name="annotated", version_base=None)
 def optimize_params_dog(cfg):
     # get images
     files = os.listdir(os.path.join(cfg.paths.base, "images", "train"))
