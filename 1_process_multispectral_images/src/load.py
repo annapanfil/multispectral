@@ -12,7 +12,10 @@ sys.path.append('/home/anna/code/libraries/imageprocessing')
 import micasense.capture as capture
 import micasense.imageutils as imageutils
 
-def load_not_aligned(image_dir: str, image_nr: str, panel_image_nr: int, altitude: int) -> np.ndarray:
+def load_not_aligned(image_dir: str, image_nr: str, panel_image_nr: int, 
+                    altitude: int, 
+                    warp_matrices_path: str = "/home/anna/code/1_process_multispectral_images/out/warp_matrices_reference/"
+                    ) -> np.ndarray:
         img_capt, panel_capt = load_image_set(
             image_dir,
             image_nr, 
@@ -23,7 +26,7 @@ def load_not_aligned(image_dir: str, image_nr: str, panel_image_nr: int, altitud
 
         img_type = get_irradiance(img_capt, panel_capt)
 
-        im_aligned = align_from_saved_matrices(img_capt, img_type, "/home/anna/code/1_process_multispectral_images/out/warp_matrices_reference/", altitude, True)
+        im_aligned = align_from_saved_matrices(img_capt, img_type, warp_matrices_path , altitude, True)
         return im_aligned
 
 
@@ -42,9 +45,13 @@ def get_altitude(cfg, image_nr, i):
         else:
             altitude = cfg.params.altitude
     else:
-        with exiftool.ExifToolHelper() as et:
-            altitude = et.get_tags(Path(cfg.paths.images, f"IMG_{image_nr}_1.tif"), ["Composite:GPSAltitude"])[0]["Composite:GPSAltitude"]
-
+        try:
+            with exiftool.ExifToolHelper() as et:
+                altitude = et.get_tags(Path(cfg.paths.images, f"IMG_{image_nr}_1.tif"), ["Composite:GPSAltitude"])[0]["Composite:GPSAltitude"]
+        except exiftool.exceptions.ExifToolExecuteError:
+            print(f"ExifToolError: Could not read altitude from exif of {Path(cfg.paths.images, f'IMG_{image_nr}_1.tif')}. Please provide altitude in the config file.")
+            sys.exit(1)
+            
         if isinstance(cfg.params.altitude_change, ListConfig): 
             altitude = int(altitude - cfg.params.altitude_change[i])
         else:

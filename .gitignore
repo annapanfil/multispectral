@@ -1,6 +1,7 @@
 # config files
 .ipynb_checkpoints/
 .vscode
+*.yaml
 
 # outcomes
 *.npy
@@ -9,6 +10,7 @@ process_multispectral_images/out/*
 */__pycache__/*
 *out/
 *outputs/
+*.pyc
 
 
 # imported code
@@ -16,3 +18,6 @@ imageprocessing/
 Trash-detection-/
 import-multispectral-images-tutorial/
 litter_detection/
+
+#test code
+*test*
