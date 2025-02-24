@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from typing import List, Tuple
 
-from shapes import Circle, Rectangle
+from detection.shapes import Circle, Rectangle
 
 def show_images(images, titles=None, show=True):
     num_images = len(images)

@@ -30,9 +30,21 @@ def load_not_aligned(image_dir: str, image_nr: str, panel_image_nr: int,
         return im_aligned
 
 
-def load_aligned(image_path, image_number) -> np.ndarray:
+def load_aligned(image_path: str, image_number: str) -> np.ndarray:
+    """
+    @param image_path Path to the folder with images
+    @param image_number Number of the capture to be displayed in format like: 0024"""
+
     img_names = find_images(Path(image_path), image_number)
     images = [cv2.imread(x, cv2.IMREAD_GRAYSCALE) for x in img_names]
+    for i in range(len(images)):
+        if images[0].shape != images[i].shape:
+            if abs(images[0].shape[0] - images[i].shape[0]) > 10 and abs(images[0].shape[1] - images[i].shape[1]) > 10:
+                raise (f"Images have shapes different by more than 10 pixels ({images[0].shape}, {images[i].shape}). Please check them.")
+            else:
+                Warning("Images have different shapes. Resizing to the first image's shape")
+                images[i] = cv2.resize(images[i], (images[0].shape[1], images[0].shape[0]))
+    
     images = np.stack(images, axis=-1, dtype=np.float32)
 
     return images

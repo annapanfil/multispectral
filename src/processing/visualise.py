@@ -3,11 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import micasense.imageutils as imageutils
-
-CHANNELS = {'B': 0, 'G': 1, 'R': 2, 'NIR': 3, 'RE': 4}
-CHANNEL_NAMES = ["B", "G", "R", "NIR", "RE"]
-EPSILON = 1e-10 # not to divide by zero
-
+from consts import CHANNELS, EPSILON
 
 def show_image(image, title="Image", figsize=(30,23), cmap='gray'):
     """Display an image with a given title."""
@@ -59,27 +55,6 @@ def get_PI_image(img_aligned):
     pi_image = img_aligned[:, :, CHANNELS["NIR"]] / (img_aligned[:, :, CHANNELS["NIR"]] + img_aligned[:, :, CHANNELS["R"]] + EPSILON)
     pi_image = (pi_image - np.min(pi_image)) / (np.max(pi_image) - np.min(pi_image))
     return pi_image
-
-def get_custom_index(formula: str, img_aligned: np.array) -> np.array:
-    """Get a custom index from an image using your formula."""
-
-    for i in range(img_aligned.shape[2]):
-        img_aligned[:,:,i] =  imageutils.normalize(img_aligned[:,:,i])
-
-    try:
-        # Allow only specific variables and operators
-        allowed_vars = {"R": img_aligned[:, :, CHANNELS["R"]],
-                        "G": img_aligned[:, :, CHANNELS["G"]],
-                        "B": img_aligned[:, :, CHANNELS["B"]],
-                        "RE": img_aligned[:, :, CHANNELS["RE"]],
-                        "NIR": img_aligned[:, :, CHANNELS["NIR"]]}
-        index = eval(formula, {"__builtins__": None}, allowed_vars)
-        index = np.where(np.isnan(index), 1, index) # replace division by zero by the highest value
-        index = (index - np.min(index)) / (np.max(index) - np.min(index))
-        return index
-    except Exception as e:
-        print("Error in formula:", e)
-        return None
 
 def plot_one_channel(im_aligned, channel_nr=5):
     """Plot a single normalised channel from the aligned image."""

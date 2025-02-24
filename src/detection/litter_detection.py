@@ -2,11 +2,11 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Tuple, List
-from display import show_images
 from skimage.filters import difference_of_gaussians
 from skimage import img_as_float
 
-from shapes import Circle, Rectangle
+from detection.shapes import Circle, Rectangle
+from detection.display import show_images
 
 
 def find_pool(image: np.array, altitude: int, threshold:int = 110, verb=False) -> Rectangle:

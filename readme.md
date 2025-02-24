@@ -12,3 +12,5 @@ Processing multispectral images:
 - moving the files to create the dataset
 - litter detection with YOLO
 - litter detection with custom algorithm (blob detection + SVM)
+
+run the tests: `pytest`
