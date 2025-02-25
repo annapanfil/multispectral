@@ -5,11 +5,11 @@ import os
 from matplotlib import pyplot as plt
 import numpy as np
 
-from display import draw_litter
+from detection.display import draw_litter
 import hydra
 import cv2
 
-from detection import find_litter, get_real_piles_size, group_contours, pool2abs_point
+from detection.litter_detection import find_litter, get_real_piles_size, group_contours, pool2abs_point
 
 POOL_HEIGHT = 1.5 #m
 

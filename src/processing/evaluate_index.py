@@ -2,7 +2,7 @@ import numpy as np
 import micasense.imageutils as imageutils
 from processing.consts import OPERATIONS, CHANNELS
 
-def evaluate_postfix(expression, variables):
+def evaluate_postfix(expression: str, variables: dict) -> np.array:
     """
     Evaluate a prefix expression.
     Args:
@@ -29,7 +29,14 @@ def evaluate_postfix(expression, variables):
     return stack[0]
 
 def is_operator(c):
-    # Check if the character is an operator
+    """
+    Check if the character is an operator – any character that is neither an alphabet letter nor a digit.
+    Parameters:
+    c (str): The character to check.
+    Returns:
+    bool: True if the character is an operator, False otherwise.
+    """
+    
     return (not c.isalpha()) and (not c.isdigit())
 
 def get_priority(c):
@@ -41,9 +48,21 @@ def get_priority(c):
     return 0
 
 def infix_to_postfix(infix):
-    # from https://www.geeksforgeeks.org/convert-infix-prefix-notation/
-    # convert the infix expression to postfix
-
+    """
+    Convert an infix expression to a postfix expression.
+    This function takes an infix expression (a mathematical notation where operators are placed between operands)
+    and converts it to a postfix expression (also known as Reverse Polish Notation, where operators follow their operands).
+    Args:
+        infix (str): The infix expression to be converted.
+    Returns:
+        str: The resulting postfix expression.
+    Example:
+        >>> infix_to_postfix("A*(B+C)/D")
+        'ABC+*D/'
+    Note:
+        This function assumes that the input infix expression is valid and contains only single-letter variables,
+        digits, and the operators +, -, *, /, and ^. Parentheses are also supported for grouping.
+    """
     infix = infix[::-1]
     reversed_infix = []
 

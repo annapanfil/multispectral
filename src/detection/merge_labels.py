@@ -24,11 +24,13 @@ def merge_bbs_from_all_channels(path:str, common_fn:str, out_path:str):
     print(f"Merged {len(bbs)} bboxes in {len(files)} files and saved in {out_path}/{common_fn}_x.txt")
 
 
-if len(sys.argv) < 2:
-    print("Usage: python merge_labels.py [dataset_name]")
-    sys.exit(1)
 
-path = f"/home/anna/Datasets/annotated/{sys.argv[1]}"
-common_fns = set("_".join(file.split("_")[:-1]) for file in os.listdir(f"{path}/images/train/"))
-for common_fn in common_fns:
-    merge_bbs_from_all_channels(f"{path}/images/train/", common_fn, f"{path}/labels/train/")
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python merge_labels.py [dataset_name]")
+        sys.exit(1)
+
+    path = f"/home/anna/Datasets/annotated/{sys.argv[1]}"
+    common_fns = set("_".join(file.split("_")[:-1]) for file in os.listdir(f"{path}/images/train/"))
+    for common_fn in common_fns:
+        merge_bbs_from_all_channels(f"{path}/images/train/", common_fn, f"{path}/labels/train/")

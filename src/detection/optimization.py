@@ -1,15 +1,15 @@
-from itertools import accumulate
 import cv2
 import os
 from typing import List
-
-from matplotlib import pyplot as plt
-import numpy as np
-from detection import pool2abs_rect, find_litter
-from display import draw_rectangles
 import hydra
 import optuna
-from shapes import Rectangle
+from itertools import accumulate
+from matplotlib import pyplot as plt
+import numpy as np
+
+from detection.litter_detection import pool2abs_rect, find_litter
+from detection.display import draw_rectangles
+from detection.shapes import Rectangle
 
 def iou(box1: Rectangle, box2: Rectangle) -> float:
     """
