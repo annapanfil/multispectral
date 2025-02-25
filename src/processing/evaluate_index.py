@@ -94,11 +94,22 @@ def infix_to_postfix(infix):
     return output
 
 
-def get_custom_index(formula: str, img_aligned: np.array) -> np.array:
-    """Get a custom index from an image using your formula."""
+def get_custom_index(formula: str, img_aligned: np.array, norm_to_255=False) -> np.array:
+    """Get a custom index from an image using your formula.
+    Args:
+        formula (str): The formula to calculate the index.
+        img_aligned (np.array): The image.
+        norm_to_255 (bool): If True, before calculating the index normalize the channels to [0, 255], which sometimes works better for more complex formulas because of the numerical issues. (default: False)
+
+    Returns:
+        np.array: The calculated index.
+    """
+
+    img_aligned = img_aligned.copy()
 
     for i in range(img_aligned.shape[2]):
         img_aligned[:,:,i] =  imageutils.normalize(img_aligned[:,:,i])
+        if norm_to_255:  img_aligned[:,:,i] *= 255
 
     allowed_vars = {"R": img_aligned[:, :, CHANNELS["R"]],
                     "G": img_aligned[:, :, CHANNELS["G"]],

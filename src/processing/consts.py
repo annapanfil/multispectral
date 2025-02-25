@@ -14,6 +14,6 @@ EPSILON = 1e-10 # not to divide by zero
 OPERATIONS = {"+": operator.add, 
             "-": operator.sub, 
             "*": operator.mul, 
-            "/": operator.truediv,
+            "/": lambda a, b: a / b if b.all() != 0 else a / (b + EPSILON),
             "#": normalised_difference}
         
