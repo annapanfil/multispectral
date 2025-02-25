@@ -2,13 +2,17 @@
 
 import os
 import sys
+
 """Get the bounding boxes from all channels and merge them into one file, assigned to each channel."""
 
-def merge_bbs_from_all_channels(path:str, common_fn:str, out_path:str):
+
+def merge_bbs_from_all_channels(path: str, common_fn: str, out_path: str):
     files = [file for file in os.listdir(path) if file.startswith(common_fn)]
     bbs = set()
     for file in files:
-        with open(os.path.join(path.replace("images", "labels"), file.split(".")[0]+".txt"), "r") as f:
+        with open(
+            os.path.join(path.replace("images", "labels"), file.split(".")[0] + ".txt"), "r"
+        ) as f:
             for line in f:
                 bbs.add(line.replace("\n", ""))
 
@@ -16,13 +20,14 @@ def merge_bbs_from_all_channels(path:str, common_fn:str, out_path:str):
         os.makedirs(out_path)
 
     for file in files:
-        with open(os.path.join(out_path, file.split(".")[0]+".txt"), "w") as f:
+        with open(os.path.join(out_path, file.split(".")[0] + ".txt"), "w") as f:
             for line in bbs:
                 f.write(line)
                 f.write("\n")
 
-    print(f"Merged {len(bbs)} bboxes in {len(files)} files and saved in {out_path}/{common_fn}_x.txt")
-
+    print(
+        f"Merged {len(bbs)} bboxes in {len(files)} files and saved in {out_path}/{common_fn}_x.txt"
+    )
 
 
 if __name__ == "__main__":

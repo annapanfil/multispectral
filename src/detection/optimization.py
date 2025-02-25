@@ -7,9 +7,10 @@ from itertools import accumulate
 from matplotlib import pyplot as plt
 import numpy as np
 
-from detection.litter_detection import pool2abs_rect, find_litter
+from detection.litter_detection import find_litter, pool2abs_rect
 from detection.display import draw_rectangles
 from detection.shapes import Rectangle
+
 
 def iou(box1: Rectangle, box2: Rectangle) -> float:
     """
@@ -87,13 +88,20 @@ def calculate_ap(gt_boxes, pred_boxes, iou_threshold=0.5, verb=False):
     # Compute Average Precision (AP)
     ap = 0
     for i in range(len(precision)):
-        if i == 0 or recall[i] > recall[i - 1]: # it cant go down, but we dont want to plot the same recall value twice
+        if (
+            i == 0 or recall[i] > recall[i - 1]
+        ):  # it cant go down, but we dont want to plot the same recall value twice
             ap += precision[i] * (recall[i] - recall[i - 1])
 
     return ap
 
 
-def mean_ap(gt_boxes_all_images: List[List[Rectangle]], pred_boxes_all_images: List[List[Rectangle]], iou_thresholds=[0.5], verb=False):
+def mean_ap(
+    gt_boxes_all_images: List[List[Rectangle]],
+    pred_boxes_all_images: List[List[Rectangle]],
+    iou_thresholds=[0.5],
+    verb=False,
+):
     """
     Calculate mean Average Precision (mAP) over multiple IoU thresholds.
     """
@@ -115,8 +123,9 @@ def mean_ap(gt_boxes_all_images: List[List[Rectangle]], pred_boxes_all_images: L
     return np.mean(aps)  # Mean AP over all IoU thresholds
 
 
-
-def evaluate_detector(params: dict, images_paths: List[str], ground_truth_boxes: List[Rectangle], verb=False):
+def evaluate_detector(
+    params: dict, images_paths: List[str], ground_truth_boxes: List[Rectangle], verb=False
+):
     """
     Evaluate the detector using mean IoU with ground truth bounding boxes.
     """
@@ -127,11 +136,14 @@ def evaluate_detector(params: dict, images_paths: List[str], ground_truth_boxes:
     for img_path, gt_boxes in zip(images_paths, ground_truth_boxes):
         # Detect bounding boxes using the detector
         altitude = int(img_path.split("_")[-2])
-        image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)    
+        image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
 
         _, detected_boxes, pool, _, _ = find_litter(
-            image, img_path.split("/")[-1], params["sigma_a"] * altitude + params["sigma_b"], 
-            params["dog_thresh"], params["max_litter_size_tresh_perc"]
+            image,
+            img_path.split("/")[-1],
+            params["sigma_a"] * altitude + params["sigma_b"],
+            params["dog_thresh"],
+            params["max_litter_size_tresh_perc"],
         )
 
         detected_boxes = pool2abs_rect(detected_boxes, pool)
@@ -147,8 +159,8 @@ def evaluate_detector(params: dict, images_paths: List[str], ground_truth_boxes:
             plt.imshow(img_to_show)
             plt.show()
 
-        all_gt_boxes.append(gt_boxes) 
-        all_pred_boxes.append(detected_boxes) 
+        all_gt_boxes.append(gt_boxes)
+        all_pred_boxes.append(detected_boxes)
 
     # Compute mAP for the current set of images
     return mean_ap(all_gt_boxes, all_pred_boxes, np.arange(0.4, 1.01, 0.1), verb)
@@ -160,7 +172,7 @@ def read_bboxes(label_path: str, image_width: int, image_height: int) -> List[Re
         for line in f:
             class_id, center_x, center_y, width, height = map(float, line.split())
             # class_id = int(class_id)
-            
+
             # Convert YOLO format to pixel values
             xl = int((center_x - (width / 2)) * image_width)
             xr = int((center_x + (width / 2)) * image_width)
@@ -168,7 +180,7 @@ def read_bboxes(label_path: str, image_width: int, image_height: int) -> List[Re
             yb = int((center_y + (height / 2)) * image_height)
 
             bboxes.append(Rectangle(xl, yt, xr, yb))
-    
+
     return bboxes
 
 
@@ -178,30 +190,43 @@ def optimize_params_dog(cfg):
     files = os.listdir(os.path.join(cfg.paths.base, "images", "train"))
 
     filtered_files = {
-        '_'.join(file.split('_')[:4])  # Get the first 4 parts of the filename
-        for file in files
+        "_".join(file.split("_")[:4]) for file in files  # Get the first 4 parts of the filename
     }
 
-    images = [os.path.join(cfg.paths.base, "images", "train", f"{x}_{cfg.paths.img_type}.{cfg.paths.extension}") for x in filtered_files]
+    images = [
+        os.path.join(
+            cfg.paths.base, "images", "train", f"{x}_{cfg.paths.img_type}.{cfg.paths.extension}"
+        )
+        for x in filtered_files
+    ]
 
     # get image width and height
     image = cv2.imread(images[0])
     image_height, image_width = image.shape[:2]
-    print(f"Image 0 width: {image_width} height: {image_height}. Assuming all the images are like it.")
+    print(
+        f"Image 0 width: {image_width} height: {image_height}. Assuming all the images are like it."
+    )
 
     # get ground truth bounding boxes
-    label_paths = [os.path.join(cfg.paths.base, "labels_joined", "train", f"{x}_{cfg.paths.img_type}.txt") for x in filtered_files]
+    label_paths = [
+        os.path.join(cfg.paths.base, "labels_joined", "train", f"{x}_{cfg.paths.img_type}.txt")
+        for x in filtered_files
+    ]
     labels = [read_bboxes(path, image_width, image_height) for path in label_paths]
 
     def objective(trial):
         params = {
-            "dog_thresh": trial.suggest_float('dog_thresh', 0, 0.5),
-            "max_litter_size_tresh_perc": trial.suggest_float('max_litter_size_tresh_perc', 0, 0.5), # as percentage of the pool width
-            "sigma_a": trial.suggest_float('sigma_a', -1/3, 0), # for the sigma = sigma_a * alt + sigma_b
-            "sigma_b": trial.suggest_float('sigma_b', 0,10)
+            "dog_thresh": trial.suggest_float("dog_thresh", 0, 0.5),
+            "max_litter_size_tresh_perc": trial.suggest_float(
+                "max_litter_size_tresh_perc", 0, 0.5
+            ),  # as percentage of the pool width
+            "sigma_a": trial.suggest_float(
+                "sigma_a", -1 / 3, 0
+            ),  # for the sigma = sigma_a * alt + sigma_b
+            "sigma_b": trial.suggest_float("sigma_b", 0, 10),
         }
 
-        if params['sigma_a'] * 30 + params['sigma_b'] <= 0:
+        if params["sigma_a"] * 30 + params["sigma_b"] <= 0:
             return float("-inf")
 
         return evaluate_detector(params, images, labels, verb=False)
@@ -218,4 +243,3 @@ def optimize_params_dog(cfg):
 
 if __name__ == "__main__":
     optimize_params_dog()
-
