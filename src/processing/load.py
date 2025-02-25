@@ -5,7 +5,6 @@ import numpy as np
 from pathlib import Path
 import cv2
 from omegaconf import ListConfig
-import skimage
 from skimage.transform import ProjectiveTransform
 sys.path.append('/home/anna/code/multispectral/libraries/imageprocessing')
 
@@ -16,24 +15,46 @@ def load_not_aligned(image_dir: str, image_nr: str, panel_image_nr: int,
                     altitude: int, 
                     warp_matrices_path: str = "/home/anna/code/multispectral/out/warp_matrices_reference/"
                     ) -> np.ndarray:
-        img_capt, panel_capt = load_image_set(
-            image_dir,
-            image_nr, 
-            panel_image_nr
-        )
+    """
+    Loads a set of images that are not aligned and aligns them using precomputed warp matrices.
+    Args:
+        image_dir (str): Directory containing the images.
+        image_nr (str): Identifier for the image set.
+        panel_image_nr (int): Identifier for the panel image.
+        altitude (int): Altitude at which the images were captured.
+        warp_matrices_path (str, optional): Path to the directory containing the warp matrices. Defaults to "/home/anna/code/multispectral/out/warp_matrices_reference/".
+    Returns:
+        np.ndarray: Aligned images as a NumPy array.
+    """
+    
+    img_capt, panel_capt = load_image_set(
+        image_dir,
+        image_nr, 
+        panel_image_nr
+    )
 
-        print(f"Loaded {len(img_capt.images)} images with altitude {altitude}\nAligning images...")
+    print(f"Loaded {len(img_capt.images)} images with altitude {altitude}\nAligning images...")
 
-        img_type = get_irradiance(img_capt, panel_capt)
+    img_type = get_irradiance(img_capt, panel_capt)
 
-        im_aligned = align_from_saved_matrices(img_capt, img_type, warp_matrices_path , altitude, True)
-        return im_aligned
+    im_aligned = align_from_saved_matrices(img_capt, img_type, warp_matrices_path , altitude, True)
+    return im_aligned
 
 
 def load_aligned(image_path: str, image_number: str) -> np.ndarray:
     """
-    @param image_path Path to the folder with images
-    @param image_number Number of the capture to be displayed in format like: 0024"""
+    Loads and aligns a set of multispectral images from a specified directory.
+    Args:
+        image_path (str): Path to the folder containing the images.
+        image_number (str): Number of the capture to be displayed in format like: 0024.
+    Returns:
+        np.ndarray: A numpy array containing the stacked images with shape (height, width, 6).
+    Raises:
+        ValueError: If the number of images found is not equal to 6.
+        ValueError: If the shapes of the images differ by more than 10 pixels in any dimension.
+    Warns:
+        Warning: If the shapes of the images differ by less than 10 pixels, they will be resized to match the first image's shape.
+    """
 
     img_names = find_images(Path(image_path), image_number)
     if len(img_names) != 6:
@@ -51,8 +72,18 @@ def load_aligned(image_path: str, image_number: str) -> np.ndarray:
 
     return images
 
-def get_altitude(cfg, image_nr, i):
-    """Read altitude based on the information from exif and config file"""
+def get_altitude(cfg, image_nr: str, i: int):
+    """Read altitude based on the information from exif and config file.
+    Args:
+        cfg (hydra config): Configuration object containing parameters and paths.
+        image_nr (str): Image number to identify the specific image file.
+        i (int): Index to access altitude or altitude change from a list if applicable.
+    Returns:
+        int: The altitude value.
+    Raises:
+        SystemExit: If the altitude cannot be read from the exif data and is not provided in the config file.
+    """
+   
     if "altitude" in cfg.params:
         if isinstance(cfg.params.altitude, ListConfig):
             altitude = cfg.params.altitude[i]
@@ -73,7 +104,18 @@ def get_altitude(cfg, image_nr, i):
     return altitude
 
 def find_images(image_path:Path, image_number:str, panel=False, with_set=None):
-    """Find images for a given capture number."""    
+    """
+    Find images for a given capture number.
+    Args:
+        image_path (Path): The path to the directory containing the images.
+        image_number (str): The capture number of the images to find.
+        panel (bool, optional): True if we search for panel images. Defaults to False.
+        with_set (bool, optional): Internal parameter to handle recursive search. Defaults to None.
+    Returns:
+        list: A list of image file paths as strings.
+    Raises:
+        FileNotFoundError: If no images are found for the given capture number.
+    """   
 
     image_names = list(image_path.glob('IMG_'+ image_number + '_*.tif*'))
     if image_names == []:
@@ -95,10 +137,16 @@ def load_image_set(
         image_number="0000",
         panel_image_number=None
     ):
-    """Load 6 images into one capture object
-    @param image_path path to all of the photos. Assuming all images in the capture are in the same directory
-    @param image_number number of capture to be displayed
-    @param panel_image_number number of capture with a calibration QR code
+    """
+    Load 6 images into one capture object.
+
+    Args:
+        image_path (str): Path to the directory containing the images.
+        image_number (str): Number of the capture to be displayed.
+        panel_image_number (str, optional): Number of the capture with a calibration QR code.
+
+    Returns:
+        tuple: A tuple containing the image capture object and the panel capture object.
     """
 
     img_names = find_images(Path(image_path), image_number)
@@ -115,8 +163,16 @@ def load_image_set(
     return img_capt, panel_capt
 
 def get_irradiance(img_capt, panel_capt, display=False):
-    """ get irradiance and image type and display
-    @return reflectance or radiance
+    """
+    Get irradiance and image type and display.
+
+    Args:
+        img_capt (Capture): The image capture.
+        panel_capt (Capture): The panel capture.
+        display (bool, optional): Whether to display the images. Defaults to False.
+
+    Returns:
+        str: 'reflectance' or 'radiance'
     """
     if panel_capt is not None:
         if panel_capt.panel_albedo() is not None:
@@ -168,9 +224,16 @@ def read_warp_matrices_for_SIFT(fn="./out/warp_matrices_SIFT.npy"):
 
 
 def get_saved_matrices(warp_matrices_dir: str, altitude: int, allow_closest=False) -> np.array:
-    """Get saved matrices from warp_matrices_dir with the given altitude
-    @param allow_closest: if the matrices file is not found, get the closest one by the altitude.
-    @return: warp_matrices"""
+    """
+    Get saved matrices from warp_matrices_dir with the given altitude.
+
+    Args:
+        warp_matrices_dir (str): The directory containing the warp matrices.
+        altitude (int): The altitude for which the matrices should be loaded.
+        allow_closest (bool): If the matrices file is not found, get the closest one by the altitude.
+    Returns:
+        np.array: The warp matrices.
+    """
     fn = f"{warp_matrices_dir}/warp_matrices_{altitude}.npy"
 
     if Path(fn).is_file():
@@ -199,19 +262,20 @@ def align_rig_relatives(capt, img_type):
 
     return im_aligned
 
-def align_SIFT(capture, img_type, irradiance_list, matrices_fn="./out/warp_matrices_SIFT.npy", verbose=0):
+def align_SIFT(capture, img_type, irradiance_list, matrices_fn="./out/warp_matrices_SIFT.npy", verbose=0) -> tuple:
     """
     Align and sharpen multispectral images using SIFT algorithm.
 
-    This function performs image alignment using the Scale-Invariant Feature Transform (SIFT) 
-    algorithm and then applies radiometric pan-sharpening to the aligned images.
+    Args:
+        capture (Capture): The Capture object containing the multispectral images to be aligned.
+        img_type (str): The type of image data, e.g., 'reflectance' or 'radiance'.
+        irradiance_list (list): List of irradiance values for each band.
+        matrices_fn (str, optional): Path to the file containing the warp matrices. Defaults to "./out/warp_matrices_SIFT.npy".
+        verbose (int, optional): Verbosity level. Defaults to 0.
 
-    @param capture (Capture): The Capture object containing the multispectral images to be aligned.
-    @param img_type (str): The type of image data, e.g., 'reflectance' or 'radiance'.
-    @param irradiance_list (list): List of irradiance values for each band.
-
-    @return sharpened_stack (numpy.ndarray): The radiometrically pan-sharpened and aligned image stack.
-    @return im_aligned (list): List of aligned images before pan-sharpening.
+    Returns:
+        numpy.ndarray: The radiometrically pan-sharpened and aligned image stack.
+        list: List of aligned images before pan-sharpening.
     """
     warp_matrices = read_warp_matrices_for_SIFT(matrices_fn)
     if warp_matrices is False:
@@ -233,6 +297,7 @@ def align_SIFT(capture, img_type, irradiance_list, matrices_fn="./out/warp_matri
 
 
 def align_iterative(capture, img_type):
+    """ align iteratively """
     match_index = 5 # Index of the band 
     max_alignment_iterations = 20
     warp_mode = cv2.MOTION_HOMOGRAPHY # MOTION_HOMOGRAPHY or MOTION_AFFINE. For Altum images only use HOMOGRAPHY
@@ -254,6 +319,20 @@ def align_iterative(capture, img_type):
 
 
 def align_from_saved_matrices(capture, img_type: str, warp_matrices_dir: str, altitude: int, allow_closest=False):
+
+    """
+    Align images using precomputed warp matrices.
+    
+    Args:
+        capture: The image capture object containing the images to be aligned.
+        img_type (str): 'reflectance' or 'radiance'
+        warp_matrices_dir (str): Directory path where the warp matrices are stored.
+        altitude (int): The altitude at which the images were captured.
+        allow_closest (bool, optional): If True, if the matrices file is not found, get the closest one by the altitude. Defaults to False.
+    
+    Returns:
+        im_aligned: The aligned image capture object.
+    """
     match_index = 5
     warp_mode = cv2.MOTION_HOMOGRAPHY
     

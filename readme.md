@@ -14,3 +14,5 @@ Processing multispectral images:
 - litter detection with custom algorithm (blob detection + SVM)
 
 run the tests: `pytest`
+
+generate documentation: `PYTHONPATH=src python -m pdoc detection -o docs -d google`
