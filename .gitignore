@@ -16,10 +16,12 @@ out/*
 src/outputs/*
 src/detection/runs/*
 src/datasets/*
+runs/*
 
 # inputs
 input/*
 *.pt
+datasets/*
 
 
 # imported code
