@@ -16,3 +16,5 @@ Processing multispectral images:
 run the tests: `pytest`
 
 generate documentation: `PYTHONPATH=src python -m pdoc detection -o docs -d google`
+
+train yolo (from src directory):  `ls ../datasets/ | grep pool_* | xargs -I {} python3 -m detection.yolo -d {} -tag "ghost-net index", --tag "pool ds testing", --tag "YOLO10n"`
