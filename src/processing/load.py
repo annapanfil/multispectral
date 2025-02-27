@@ -46,7 +46,7 @@ def load_aligned(image_path: str, image_number: str) -> np.ndarray:
     Loads and aligns a set of multispectral images from a specified directory.
     Args:
         image_path (str): Path to the folder containing the images.
-        image_number (str): Number of the capture to be displayed in format like: 0024.
+        image_number (str): Number of the capture to be displayed in format like: 0024 or part of image name without the channel.
     Returns:
         np.ndarray: A numpy array containing the stacked images with shape (height, width, 6).
     Raises:
@@ -108,7 +108,7 @@ def find_images(image_path:Path, image_number:str, panel=False, with_set=None):
     Find images for a given capture number.
     Args:
         image_path (Path): The path to the directory containing the images.
-        image_number (str): The capture number of the images to find.
+        image_number (str): The capture number of the images to find or part of image name without the channel.
         panel (bool, optional): True if we search for panel images. Defaults to False.
         with_set (bool, optional): Internal parameter to handle recursive search. Defaults to None.
     Returns:
@@ -119,7 +119,7 @@ def find_images(image_path:Path, image_number:str, panel=False, with_set=None):
 
     image_names = list(image_path.glob('IMG_'+ image_number + '_*.tif*'))
     if image_names == []:
-        image_names = sorted(list(image_path.glob(f"*_{image_number}_*_ch*.tif*")))
+        image_names = sorted(list(image_path.glob(f"*{image_number}*_ch*.tif*")))
 
     image_names = [x.as_posix() for x in image_names]
    

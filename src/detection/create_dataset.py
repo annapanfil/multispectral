@@ -96,7 +96,7 @@ def apply_formula(image_path: str, formula: str, is_complex: bool = False) -> np
     """
 
     dir_path = "/".join(image_path.split("/")[:-1])
-    image_nr = image_path.split("/")[-1].split("_")[2]
+    image_nr = "_".join(image_path.split("/")[-1].split("_")[:4])
 
     im_aligned = load_aligned(dir_path, image_nr)
 
