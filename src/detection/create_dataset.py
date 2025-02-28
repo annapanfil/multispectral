@@ -20,6 +20,7 @@ from detection.shapes import Rectangle
 def read_all_datasets(
     dataset_path="/home/anna/Datasets/annotated",
     excluded_litter=["grass_bio_brown", "flake_PE_black", "flake_PE_transparent"],
+    excluded_sets=[],
     channel="RGB.png",
 ) -> pd.DataFrame:
     """
@@ -28,6 +29,7 @@ def read_all_datasets(
     Args:
         dataset_path (str, optional): Path to the dataset containing subdirectories with images and annotations.
         excluded_litter (list, optional): List of litter classes to exclude from the result.
+        excluded_sets (list, optional): List of subdatasets to exclude from the result.
         channel (str, optional): Image channel to use as a base.
 
     Returns:
@@ -37,6 +39,8 @@ def read_all_datasets(
 
     subdatasets = next(os.walk(dataset_path))[1]
     subdatasets.remove("warp_matrices")
+    for excluded_set in excluded_sets:
+        subdatasets.remove(excluded_set)
 
     data = []
     columns = ["subdataset", "image_path", "annot_path", "annots"]
@@ -208,9 +212,9 @@ def export_splits(
     with open(os.path.join(new_dataset_path, f"{dataset_name}.yaml"), "w") as file:
         yaml.dump(
             {
-                "train": f"../../../{dataset_name}/images/train",
-                "val": f"../../../{dataset_name}/images/val",
-                "test": f"../../../{dataset_name}/images/test",
+                "train": f"../../{dataset_name}/images/train",
+                "val": f"../../{dataset_name}/images/val",
+                "test": f"../../{dataset_name}/images/test",
                 "names": ["pile"],
                 "nc": 1,
             },
@@ -227,11 +231,13 @@ def export_splits(
 @click.option("--new_image_size", "-sz", nargs=2, default=(800, 608), help="New image size", show_default=True)
 @click.option("--split", "-s", default="random", help="Split type (random or hand)", show_default=True)
 @click.option("--new_dataset_name", "-n", help="Name of the new dataset")
-@click.option("--formula", "-f", help="Formula applied to image channels, can be None")
-def main(pile_margin, new_image_size, new_dataset_name, formula, split):
+@click.option("--formula", "-f", help="Formula applied to image channels, can be None, then RGB images are saved")
+@click.option("--exclude", "-e", default ="", help="Datasets to exclude from the new dataset.")
+def main(pile_margin, new_image_size, split,new_dataset_name, formula, exclude):
     """
     Create a new dataset with train, test, val splits.
     """
+    print(f"Creating a dataset {new_dataset_name}...")
 
     is_complex = False
     new_dataset_path = f"/home/anna/Datasets/created/{new_dataset_name}"
@@ -243,12 +249,15 @@ def main(pile_margin, new_image_size, new_dataset_name, formula, split):
             print("Treating the formula as complex.")
             is_complex = True
 
+    excluded_sets = [] if exclude == "" else [exclude]
+
     ################################################
     print("Reading images from datasets ...")
 
     df = read_all_datasets(
         dataset_path="/home/anna/Datasets/annotated",
         excluded_litter=["grass_bio_brown", "flake_PE_black", "flake_PE_transparent"],
+        excluded_sets=excluded_sets,
         channel="RGB.png",
     )
 
