@@ -59,7 +59,8 @@ def save_gt_and_pred(task, results, gt_boxes, n_cols=4, split="val"):
 @click.option("--experiment_name", "-n", default="indices", help="Project name in clear ml")
 @click.option("--task_name", "-t", default="", help="Addition to the task name (default is dataset name)")
 @click.option("--tag", multiple=True, help="Tag for the Clear ML experiment")
-def main(dataset, experiment_name, task_name, tag):
+@click.option("--version", "-v", default="yolov10n", help="YOLO version")
+def main(dataset, experiment_name, task_name, tag, version):
      print("Running task for", dataset)
      Task.set_credentials(
           api_host="https://api.clear.ml",
@@ -71,12 +72,21 @@ def main(dataset, experiment_name, task_name, tag):
 
      task = Task.init(project_name=experiment_name, task_name=f"{dataset} {task_name}")
      task.add_tags(list(tag))
-     model = YOLO("yolov10n.pt")  # load a pretrained model
-     yaml_path = f"../datasets/{dataset}" 
-     results = model.train(data=f"{yaml_path}/{dataset}.yaml", epochs=100, imgsz=[800, 608], batch=8)
 
+     model = YOLO(f"{version}.pt")  # load a pretrained model
+     epochs = 100
+     yaml_path = f"../datasets/{dataset}" 
+     results = model.train(data=f"{yaml_path}/{dataset}.yaml", epochs=epochs, imgsz=[800, 608], batch=8)
+
+     results = model.val(split="train", save=False) 
+     print(results.results_dict)
+     task.logger.report_scalar("train metrics", "train/mAP50", results.box.map50, epochs)
+     task.logger.report_scalar("train metrics", "train/mAP50-95", results.box.map, epochs)
+     task.logger.report_scalar("train metrics", "train/precision", results.box.mp, epochs)
+     task.logger.report_scalar("train metrics", "train/recall", results.box.mr, epochs)
 
      for split in ("train", "val"):
+
           results = model.predict(source=f"../datasets/{dataset}/images/{split}", conf=0.3, save=False)
           gt = read_ground_truth(results)
           save_gt_and_pred(task, results, gt, split=split)
