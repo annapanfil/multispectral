@@ -31,10 +31,16 @@ if __name__ == "__main__":
         "((3 # 1) - (1 # (3 * 2)))",
         "(4 # (2 + 2))",
 
-        "(2+0) - 4"
+        "(2+0) - 4",
+
+        "4 # 1",
+        "(4 # ((((2 + 3) + (2 + (2 + 3))) / 0) + 1))",
+        "2 # 1",
+        "((3 * 3) # ((3 + 3) + 1))",
+        "(1 + (2 - 0))"
     ]
 
-    titles = ["rndwi", "meanRE"] + [f"ghost-net {i+1}" for i in range(7)] + ["sea 1"] + ["pool"]
+    titles = ["rndwi", "meanRE"] + [f"ghost-net {i+1}" for i in range(7)] + ["sea 1"] + [f"pool {i+1}" for i in range(5)]
 
     for image_path in images_paths:
         image_path = base_path + image_path
@@ -46,7 +52,7 @@ if __name__ == "__main__":
             image_nr
         )
 
-        fig, ax = plt.subplots(4, 3, figsize=(24, 12))
+        fig, ax = plt.subplots(4, 4, figsize=(24, 16))
         ax = ax.flatten()
 
         for i, formula in enumerate(formulas):
@@ -58,5 +64,10 @@ if __name__ == "__main__":
             ax[i].imshow(result, cmap="gray")
             ax[i].set_title(titles[i])
             ax[i].axis("off")
+        
+        for i in range(len(formulas)-1, 4*4):
+            ax[i].axis("off")
 
+        plt.savefig(f"/home/anna/Documents/2025_03_05_running_yolo/img/{image_path.split('/')[-1].split('.')[0]}_indices.png")
         plt.show()
+
