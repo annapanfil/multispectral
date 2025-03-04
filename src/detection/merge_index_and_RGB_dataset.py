@@ -22,15 +22,26 @@ def main(dataset_type, index_dataset):
     dataset_path = "/home/anna/Datasets/created"
     rgb_path = f"{dataset_path}/RGB_{dataset_type}"
     dirs = next(os.walk(dataset_path))[1]
-    for dir in dirs:
-        if dataset_type in dir and index_dataset in dir and dir != "RGB_{dataset_type}":
-            new_name = f"{dir.split('_')[0]}_RGB-and-{'_'.join(dir.split('_')[1:])}"
-            print(dir, " -> ", new_name)
-            shutil.copytree(f'{dataset_path}/{dir}', f'{dataset_path}/{new_name}')
+    for old_name in dirs:
+        if dataset_type in old_name and index_dataset in old_name and old_name != "RGB_{dataset_type}":
+            new_name = f"{old_name.split('_')[0]}_RGB-and-{'_'.join(old_name.split('_')[1:])}"
+            print(old_name, " -> ", new_name)
+            shutil.copytree(f'{dataset_path}/{old_name}', f'{dataset_path}/{new_name}')
             for item in ("images", "labels"):
                 for file in os.listdir(f'{dataset_path}/{new_name}/{item}/train'):
                     RGB_file_name = f"{'_'.join(file.split('_')[:-1])}_RGB.{file.split('.')[-1]}"
                     shutil.copy2(f'{rgb_path}/{item}/train/{RGB_file_name}', f'{dataset_path}/{new_name}/{item}/train/')
+
+            # change yaml
+            shutil.move(f'{dataset_path}/{new_name}/{old_name}.yaml', f'{dataset_path}/{new_name}/{new_name}.yaml')
+            with open(f'{dataset_path}/{new_name}/{new_name}.yaml', "r") as file:
+                content = file.read()
+
+            content = content.replace(old_name, new_name)
+
+            with open(f'{dataset_path}/{new_name}/{new_name}.yaml', "w") as file:
+                file.write(content)
+            
 
 if __name__ == "__main__":
     main()
