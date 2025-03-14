@@ -227,7 +227,7 @@ def export_splits(
 
 
 @click.command()
-@click.option("--pile_margin", "-m", default=13, help="Litter distant by this number of pixels will be merged to pile", show_default=True)
+@click.option("--pile_margin", "-m", default=None, help="Litter distant by this number of pixels will be merged to pile", show_default=True)
 @click.option("--new_image_size", "-sz", nargs=2, default=(800, 608), help="New image size", show_default=True)
 @click.option("--split", "-s", default="random", help="Split type (random or hand)", show_default=True)
 @click.option("--new_dataset_name", "-n", help="Name of the new dataset")
@@ -241,6 +241,11 @@ def main(pile_margin, new_image_size, split,new_dataset_name, formula, exclude):
 
     is_complex = False
     new_dataset_path = f"/home/anna/Datasets/created/{new_dataset_name}"
+
+    if os.path.exists(new_dataset_path):
+        print("Dataset already exists. Skipping...")
+        return
+
     if formula:
         for ch, n in CHANNELS.items():
             formula = formula.replace(str(n), ch)
@@ -261,8 +266,11 @@ def main(pile_margin, new_image_size, split,new_dataset_name, formula, exclude):
         channel="RGB.png",
     )
 
-    print("Merging rectangles ...")
-    df["piles"] = df["annots"].apply(lambda x: merge_rectangles(x, pile_margin))
+    if pile_margin is not None and pile_margin != "None":
+        print(f"Merging rectangles with margin {pile_margin}...")
+        df["piles"] = df["annots"].apply(lambda x: merge_rectangles(x, pile_margin))
+    else :
+        df["piles"] = df["annots"]
 
     print("Total images:", len(df), "Total piles:", df["piles"].apply(len).sum())
     print("Splitting data...")
