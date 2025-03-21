@@ -21,11 +21,22 @@ if __name__ == "__main__":
 
     # GET FORMULAS
     field_names = ["tags.mlflow.runName", "params.dataset", "params.final_formula", "tags.discard"]
-    selected_columns = df[field_names]
+    # selected_columns = df[field_names]
 
-    baseline_rows = pd.DataFrame([["rndwi", None, "N # G", "false"],
-                    ["meanre", None, "(4#1) + (4#0)", "false"],
-                    ["RGB", None, None, "false"]], columns=field_names)
+    baseline_rows = pd.DataFrame([
+            ["rndwi", None, "N # G", "false"],
+            ["meanre", None, "(4#1) + (4#0)", "false"],
+            # ["RGB", None, None, "false"]
+        ],columns=field_names)
+
+
+    selected_columns = pd.DataFrame([
+            ["form1", "pool", "4 # 1", "false"],
+            ["form2", "pool", "(4 - ((1 * 0) # (4 * 0)))", "false"],
+            ["form3", "pool", "(((4 + (2 * 3)) + 4) # 1)", "false"],
+            ["form4", "all", "(4 # (4 + 1))", "false"],
+            ["form5", "all", "(((0 # 4) - 4) - (4 # 1))", "false"]
+        ], columns=field_names)
 
     selected_columns = pd.concat([selected_columns, baseline_rows], ignore_index=True)
 
@@ -51,27 +62,27 @@ if __name__ == "__main__":
             continue
 
         # train and test on whole
-        run_job(["python3", "-m", "detection.create_dataset", 
-            "-n", f"{ds if ds else ''}{'-' if ds else ''}{name.replace(' ', '-')}_whole_random", 
-            "-f", formula])
+        # run_job(["python3", "-m", "detection.create_dataset", 
+        #     "-n", f"{ds if ds else ''}{'-' if ds else ''}{name.replace(' ', '-')}_whole_random", 
+        #     "-c", formula])
         
         # train on whole, test on pool
         run_job(["python3", "-m", "detection.create_dataset", 
             "-e", "mandrac",
-            "-n", f"{ds if ds else ''}{'-' if ds else ''}{name.replace(' ', '-')}_pool_random", 
-            "-f", formula])
+            "-n", f"{ds if ds else ''}{'-' if ds else ''}{name.replace(' ', '-')}_pool-3-channels_random", 
+            "-c", "E", "-c", "G", "-c", formula])
 
 
     # MERGE INDEX AND RGB DATASETS
     # train on whole idx + RGB, test on whole
-    run_job(["python3", "-m", "detection.merge_index_and_RGB_dataset", 
-             "-d", "whole_random", 
-             "-i", "ghost-net-"])
+    # run_job(["python3", "-m", "detection.merge_index_and_RGB_dataset", 
+    #          "-d", "whole_random", 
+    #          "-i", "ghost-net-"])
     
     # train on pool idx + RGB, test on pool
-    run_job(["python3", "-m", "detection.merge_index_and_RGB_dataset", 
-             "-d", "pool_random", 
-             "-i", "pool-"])
+    # run_job(["python3", "-m", "detection.merge_index_and_RGB_dataset", 
+    #          "-d", "pool_random", 
+    #          "-i", "pool-"])
     
     # SEND TO REMOTE
     print("Create zip and send it to remote host")
@@ -79,5 +90,5 @@ if __name__ == "__main__":
     remote_host = "lariat@10.2.116.180"
     remote_path = f"/home/lariat/code/anna/datasets"
     
-    subprocess.run(["zip", "-r", "datasets.zip", "*"], cwd=dataset_dir, check=True)
+    subprocess.run(["zip", "-r", "datasets.zip", "."], cwd=dataset_dir, check=True)
     subprocess.run(["scp", "datasets.zip", f"{remote_host}:{remote_path}"], cwd=dataset_dir, check=True)

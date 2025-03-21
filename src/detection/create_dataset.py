@@ -87,22 +87,17 @@ def read_all_datasets(
     return df
 
 
-def apply_formula(image_path: str, formula: str, is_complex: bool = False) -> np.array:
+def apply_formula(im_aligned: str, formula: str, is_complex: bool = False) -> np.array:
     """
     Apply formula to the image.
     Args:
-        image_path (str): Path to the image.
+        img_aligned (np.array): Multispectral image to apply the formula to.
         formula (str): Formula to apply to the image.
         is_complex (bool, optional): True means the formula is more complex and the image is normalized to [0, 255] before applying the formula.
 
     Returns:
         np.array: Image with the formula applied.
     """
-
-    dir_path = "/".join(image_path.split("/")[:-1])
-    image_nr = "_".join(image_path.split("/")[-1].split("_")[:4])
-
-    im_aligned = load_aligned(dir_path, image_nr)
 
     image = get_custom_index(formula, im_aligned, is_complex)
     image = (image * 255).astype(np.uint8)
@@ -115,7 +110,8 @@ def create_files(
     df: pd.DataFrame,
     split: str,
     new_image_size: tuple,
-    formula: str = None,
+    channels: list = ["R", "G", "B"],
+    # formula: str = None,
     is_complex: bool = False,
 ) -> None:
     """
@@ -126,33 +122,46 @@ def create_files(
         df (pd.DataFrame): Contains image_path (of the original image) and "piles" (Rectangles with annotations).
         split (str): Train, test, or val (or other).
         new_image_size (tuple): Values to resize the image with.
-        formula (str, optional): Formula to apply to the image. If not specified, the image is only resized.
-        is_complex (bool, optional): True means the formula is more complex and the image is normalized to [0, 255] before applying the formula.
+        channels (list, optional): Channel names or formulas to apply to the image. If not specified, the image is resized and saved as RGB.
+        is_complex (bool, optional): True means the formula in channels is more complex and the image is normalized to [0, 255] before applying the formula.
 
     Returns:
         None
     """
 
+    def get_new_name(row):
+        path = os.path.join(dataset_path, "images", split, row.split("/")[-1])
+        channels_str = "_".join(channels).replace("/", ":").replace(" ", "")
+        path = "_".join(path.split("_")[:-1]) + "_" + channels_str + ".png"
+        return path
+
     print("Creating files for", split, "set ...")
     df["new_image_path"] = df["image_path"].apply(
-        lambda x: os.path.join(dataset_path, "images", split, x.split("/")[-1])
+        lambda x: get_new_name(x)
     )
+   
     df["new_annot_path"] = df["new_image_path"].apply(
         lambda x: x.replace("images", "labels").replace(".png", ".txt").replace(".tiff", ".txt")
     )
 
     for i, row in df.iterrows():
-        image = cv2.imread(row["image_path"])
-        height, width = image.shape[:2]
+        dir_path = "/".join(row["image_path"].split("/")[:-1])
+        image_nr = "_".join(row["image_path"].split("/")[-1].split("_")[:4])
 
-        if formula:
-            image = apply_formula(row["image_path"], formula, is_complex)
-            row["new_image_path"] = "_".join(row["new_image_path"].split("_")[:-1]) + "_formula.png"
-            row["new_annot_path"] = "_".join(row["new_annot_path"].split("_")[:-1]) + "_formula.txt"
+        im_aligned = load_aligned(dir_path, image_nr)
+        height, width = im_aligned.shape[:2]
 
-        image = cv2.resize(image, new_image_size)
+        new_image = np.zeros((height, width, len(channels)))
 
-        cv2.imwrite(row["new_image_path"], image)
+        for i, channel in enumerate(channels):
+            if channel in CHANNELS:
+                new_image[:, :, i] = im_aligned[:, :, CHANNELS[channel]]
+            else:
+                new_image[:, :, i] = apply_formula(im_aligned, channel, is_complex)
+
+        new_image = cv2.resize(new_image, new_image_size)
+
+        cv2.imwrite(row["new_image_path"], new_image)
 
         with open(row["new_annot_path"], "w") as f:
             for pile in row["piles"]:
@@ -170,7 +179,7 @@ def export_splits(
     df,
     new_dataset_path: str,
     new_image_size: tuple,
-    formula: str = None,
+    channels: list = ["R", "G", "B"],
     is_complex: bool = False,
 ) -> None:
     """Create new dataset according to the splits
@@ -181,7 +190,7 @@ def export_splits(
         df (pd.DataFrame): Contains image_path (of the original image) and "piles" (Rectangles with annotations).
         new_dataset_path (str): Path to directory with new dataset.
         new_image_size (tuple): Values to resize the image with.
-        formula (str, optional): Formula to apply to the image. If not specified, the image is only resized.
+        channels (list, optional): Channel names or formulas to apply to the image. If not specified, the image is resized and saved as RGB.
         is_complex (bool, optional): True means the formula is more complex and the image is normalized to [0, 255] before applying the formula.
 
     Returns:
@@ -221,9 +230,9 @@ def export_splits(
             file,
         )
 
-    create_files(new_dataset_path, train_df, "train", new_image_size, formula, is_complex)
-    create_files(new_dataset_path, val_df, "val", new_image_size, formula, is_complex)
-    create_files(new_dataset_path, test_df, "test", new_image_size, formula, is_complex)
+    create_files(new_dataset_path, train_df, "train", new_image_size, channels, is_complex)
+    create_files(new_dataset_path, val_df, "val", new_image_size, channels, is_complex)
+    create_files(new_dataset_path, test_df, "test", new_image_size, channels, is_complex)
 
 
 @click.command()
@@ -231,9 +240,9 @@ def export_splits(
 @click.option("--new_image_size", "-sz", nargs=2, default=(800, 608), help="New image size", show_default=True)
 @click.option("--split", "-s", default="random", help="Split type (random or hand)", show_default=True)
 @click.option("--new_dataset_name", "-n", help="Name of the new dataset")
-@click.option("--formula", "-f", help="Formula applied to image channels, can be None, then RGB images are saved")
-@click.option("--exclude", "-e", default ="", help="Datasets to exclude from the new dataset.")
-def main(pile_margin, new_image_size, split,new_dataset_name, formula, exclude):
+@click.option("--channels", "-c", multiple=True, default=["R", "G", "B"], help="channels or formulas to save", show_default=True)
+@click.option("--exclude", "-e", multiple=True, default =[], help="Datasets to exclude from the new dataset.")
+def main(pile_margin, new_image_size, split,new_dataset_name, channels, exclude):
     """
     Create a new dataset with train, test, val splits.
     """
@@ -246,15 +255,16 @@ def main(pile_margin, new_image_size, split,new_dataset_name, formula, exclude):
         print("Dataset already exists. Skipping...")
         return
 
-    if formula:
+    channels = list(channels)
+    for i in range(len(channels)):
+        channels[i] = channels[i].upper()
         for ch, n in CHANNELS.items():
-            formula = formula.replace(str(n), ch)
-        print("Formula: ", formula, " will be applied to the images.")
-        if len(formula) > 40:
-            print("Treating the formula as complex.")
+            channels[i] = channels[i].replace(str(n), ch)
+        print(f"Channel {i} will be: {channels[i]}")
+        if len(channels[i]) > 40:
+            print("Treating the formula as complex. (Will be applied to all the formulas)")
             is_complex = True
 
-    excluded_sets = [] if exclude == "" else [exclude]
 
     ################################################
     print("Reading images from datasets ...")
@@ -262,7 +272,7 @@ def main(pile_margin, new_image_size, split,new_dataset_name, formula, exclude):
     df = read_all_datasets(
         dataset_path="/home/anna/Datasets/annotated",
         excluded_litter=["grass_bio_brown", "flake_PE_black", "flake_PE_transparent"],
-        excluded_sets=excluded_sets,
+        excluded_sets=exclude,
         channel="RGB.png",
     )
 
@@ -309,7 +319,7 @@ def main(pile_margin, new_image_size, split,new_dataset_name, formula, exclude):
         print("Split not recognised")
     ################################################
 
-    export_splits(train_df, val_df, test_df, df, new_dataset_path, new_image_size, formula, is_complex)
+    export_splits(train_df, val_df, test_df, df, new_dataset_path, new_image_size, channels, is_complex)
 
 
 if __name__ == "__main__":
