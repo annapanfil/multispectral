@@ -39,6 +39,10 @@ class Rectangle:
     @property
     def center(self):
         return (self.x_l + self.x_r) / 2, (self.y_b + self.y_t) / 2
+    
+    @property
+    def area(self):
+        return self.width * self.height
 
     def intersection(self, other, margin=0):
         x_l, y_b, x_r, y_t = (
@@ -59,6 +63,13 @@ class Rectangle:
             max(self.x_r, other.x_r),
             max(self.y_t, other.y_t),
         )
+    
+    def iou(self, other):
+        """ Intersection over Union """
+        if (intersection := self.intersection(other)) is None:
+            return 0
+        else:       
+            return intersection.area / self.union(other).area
 
     def __and__(self, other):
         """ intersection """
