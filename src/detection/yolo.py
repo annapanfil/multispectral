@@ -23,19 +23,22 @@ def read_ground_truth(results):
                gt_boxes.append(boxes)
      return gt_boxes
 
-def save_gt_and_pred(task, results, gt_boxes, n_cols=4, split="val"):
-
+def show_gt_and_pred(results, gt_boxes, additional_boxes = [], n_cols=4):
      temp_images = []
      n_rows = (len(results) + n_cols - 1) // n_cols
 
      # Add annots to each image
-     for result, gt in zip(results, gt_boxes):
+     for result, gt, abb in zip(results, gt_boxes, additional_boxes):
           result.names[0] = ""
           img = result.plot(conf=True, line_width=1, font_size=5)
 
           for box in gt:
                x1, y1, x2, y2 = box
                img = cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 1)
+
+          for box in abb:
+               x1, y1, x2, y2 = box
+               img = cv2.rectangle(img, (x1, y1), (x2, y2), (0, 0, 255), 1)
 
           temp_images.append(img)
 
@@ -52,7 +55,8 @@ def save_gt_and_pred(task, results, gt_boxes, n_cols=4, split="val"):
           else:
                grid_img = cv2.vconcat([grid_img, row_img])
 
-     task.logger.report_image(title="Predictions Grid", series=split, image = cv2.cvtColor(grid_img, cv2.COLOR_BGR2RGB))
+     return cv2.cvtColor(grid_img, cv2.COLOR_BGR2RGB)
+
 
 @click.command()
 @click.option("--dataset", "-d", help="Name of the dataset in the datasets directory")
@@ -89,7 +93,8 @@ def main(dataset, experiment_name, task_name, tag, version):
 
           results = model.predict(source=f"../datasets/{dataset}/images/{split}", conf=0.3, save=False)
           gt = read_ground_truth(results)
-          save_gt_and_pred(task, results, gt, split=split)
+          image = show_gt_and_pred(task, results, gt, split=split)
+          task.logger.report_image(title="Predictions Grid", series=split, image = image)
 
      task.close()
 

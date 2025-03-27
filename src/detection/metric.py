@@ -1,3 +1,4 @@
+from matplotlib import patches
 from ultralytics import YOLO
 from ultralytics.models.yolo.detect import DetectionValidator #models/yolo/detect/val.py
 from ultralytics.utils.metrics import box_iou
@@ -7,7 +8,7 @@ import torch
 import cv2
 import matplotlib.pyplot as plt
 
-from detection.yolo import read_ground_truth
+from detection.yolo import read_ground_truth, show_gt_and_pred
 
 ds_path = "/home/anna/Datasets/created/pool-form1_pool-3-channels_random/"
 FULL_DS = False
@@ -20,7 +21,7 @@ else:
     yaml =  "detection/data.yaml"
     split = "example"
 
-global_matched = [] # for showing them in the final image
+images = [] # for showing them in the final image
 
 def is_inside(bb, bbs, idx_filter=None):
     """
@@ -86,23 +87,23 @@ class MyValidator(DetectionValidator):
         iou = box_iou(gt_bboxes, detections[:, :4])
         correct, matches = self.match_predictions(detections[:, 5], gt_cls, iou)
 
-        detections_thr = detections[detections[:, 4] > 0.5]
+        detections_thr = detections[detections[:, 4] >= 0.5] #TODO: change to lowest thresh
         matched_gt = matches[matches[:, 1] < detections_thr.shape[0]][:, 0]
         not_matched_gt = np.setdiff1d(np.arange(gt_cls.shape[0]), matched_gt)        
-        
-        global global_matched
-        global_matched = matched_gt.tolist()
 
+        additional_matches = []
         for bb in not_matched_gt:
             outside_bb = is_inside(gt_bboxes[bb], gt_bboxes, matched_gt) 
-            if outside_bb:
+            if outside_bb is not None:
                 # match the prediction from the outside_bb to the bb
                 prediction_idx = matches[matches[:, 0] == outside_bb, 1][0]
+                additional_matches.append(bb)
                 self.additional_pred_bbs.append(correct[prediction_idx].unsqueeze(0))
                 self.additional_confidences.append(detections[prediction_idx, 4].unsqueeze(0))
                 self.additional_pred_cls.append(detections[prediction_idx, 5].unsqueeze(0))
-            
-                global_matched.append(bb) 
+
+        global images
+        images.append(self.plot_detections(detections_thr[:, :4], gt_bboxes, matched_gt, additional_matches))
 
         return correct
     
@@ -140,17 +141,40 @@ class MyValidator(DetectionValidator):
                     max_matches = matches
         return torch.tensor(correct, dtype=torch.bool, device=pred_classes.device), max_matches
 
+    def plot_detections(self, detections, gt_bboxes, matched_gt, additional_matches):
+        img = np.ones((650, 800, 3), dtype=np.uint8) * 255
+        for bb in detections:
+            x1, y1, x2, y2 = bb
+            img = cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 1)
+
+        for bb in gt_bboxes:
+            x1, y1, x2, y2 = bb
+            img = cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 1)
+
+        for bb in matched_gt:
+            x1, y1, x2, y2 = gt_bboxes[bb]
+            img = cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 1)
+
+
+        for bb in additional_matches:
+            x1, y1, x2, y2 = gt_bboxes[bb]
+            img = cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (255, 192, 203), 1)
+
+        return img
+
+
+
 # Load model
 model = YOLO("/home/anna/code/multispectral/src/detection/pool-form1_pool-3-channels_random_best.pt")
 
 # get metrics
-our_results = model.val(data=yaml, validator=MyValidator)
-ap50_our = our_results.results_dict["metrics/mAP50(B)"]
-ap5095_our = our_results.results_dict['metrics/mAP50-95(B)']
-
 results = model.val(data=yaml, validator=DetectionValidator)
 ap50_yolo = results.results_dict["metrics/mAP50(B)"]
 ap5095_yolo = results.results_dict['metrics/mAP50-95(B)']
+
+our_results = model.val(data=yaml, validator=MyValidator)
+ap50_our = our_results.results_dict["metrics/mAP50(B)"]
+ap5095_our = our_results.results_dict['metrics/mAP50-95(B)']
 
 plt.plot(np.linspace(50, 95, len(results.box.all_ap[0])), results.box.all_ap[0], color="red", 
          label=f"original (AP50={ap50_yolo:.3f}, AP50-95={ap5095_yolo:.3f})")
@@ -167,24 +191,32 @@ print( "---------------------------")
 print(f"Original | {ap50_yolo:.4f} | {ap5095_yolo:.4f}")
 print(f"Improved | {ap50_our:.4f} | {ap5095_our:.4f}")
 
-if not FULL_DS:
-    # show image
-    results = model.predict(source=f"{ds_path}images/{split}/", conf=0.3, save=False)
-    gt = read_ground_truth(results)
+# show image
+n_cols = 6 if FULL_DS else 1
+n_rows = (len(images) + n_cols - 1) // n_cols
 
-    # Add annots to each image
-    for result, gt in zip(results, gt):
-        result.names[0] = ""
-        img = result.plot(conf=True, line_width=1, font_size=5)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+grid_img = None
+for i in range(n_rows):
+    row_images = images[i * n_cols:(i + 1) * n_cols]
+    if len(row_images) < n_cols:
+        row_images += [np.zeros_like(row_images[0])] * (n_cols - len(row_images)) # empty images
 
-        for box in gt:
-            x1, y1, x2, y2 = box
-            img = cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 1)
-        
-        for bb in global_matched:
-            x1, y1, x2, y2 = gt[bb]
-            img = cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 0), 1)
+    row_img = cv2.hconcat([cv2.resize(img, (800, 608)) for img in row_images])
+    if grid_img is None:
+        grid_img = row_img
+    else:
+        grid_img = cv2.vconcat([grid_img, row_img])
 
-    plt.imshow(img)
-    plt.show()
+plt.imshow(grid_img)
+plt.axis('off')
+mng = plt.get_current_fig_manager()
+mng.full_screen_toggle()
+
+legend_patches = [
+    patches.Patch(color='green', label='Ground truth'),
+    patches.Patch(color='blue', label='Prediction'),
+    patches.Patch(color='red', label='Matched GT'),
+    patches.Patch(color='pink', label='New match')
+]
+plt.legend(handles=legend_patches, loc='lower right')
+plt.show()
