@@ -6,11 +6,11 @@ from surface import SURFACE
 import os
 import matplotlib.pyplot as plt
 
-path = "./surface_models/sift_100%480.pickle"
+path = "../../../models/sift_100%480.pickle"
 model = surface_utils.load_model(path)
 surface_model = SURFACE(model, "low")
 surface_model.thres = 0.5
-rootdir = "./mandrac_imgs2/"
+rootdir = "/home/anna/Datasets/SURFACE/bistrina_imgs/"
 
 for filename in os.listdir(rootdir):
 	if filename.endswith("json"): continue

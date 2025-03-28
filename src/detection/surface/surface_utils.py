@@ -247,5 +247,5 @@ def get_blob_descriptors(histograms, sift_des, n_kps):
     return np.array(descriptors)
 
 def load_model(path):
-    model = pickle.load(open(path))
+    model = pickle.load(open(path, "rb"), encoding='latin1')
     return model
