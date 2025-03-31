@@ -1,8 +1,4 @@
-import json
-import os
 import pickle
-import cv2
-from matplotlib import pyplot as plt
 import numpy as np
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
@@ -12,14 +8,10 @@ import surface_utils
 from FeatureExtractor import FeatureExtractor
 
 class SURFACE():
-    def __init__(self, resolution = "low"):
+    def __init__(self, model=None, resolution = "low"):
         self.featureExtractor = FeatureExtractor(resolution=resolution)
         self.detection_confidence_thres = 0.25
-        self.model = None
-
-    def load_model(self, path):
-        self.model = pickle.load(open(path, "rb"), encoding='latin1')
-        print("Model loaded from", path)
+        self.model = model
 
 
     def show_detections(self, data_path, split="val"):
@@ -32,13 +24,11 @@ class SURFACE():
         """
         images, _, altitudes = surface_utils.load_data(data_path, split)
 
+        all_detections = []
         for image, alt in zip(images, altitudes):
             detections, scores, proposals = self.forward_pass(image, alt)
-            for i in range(len(detections)):
-                det = detections[i]
-                cv2.circle(image, (int(det[0]), int(det[1])), radius = int(det[2]), color=(0,255,0), thickness=3)
-            plt.imshow(image)
-            plt.show()
+            all_detections.append(detections)
+        surface_utils.show_all_detections(images, all_detections)
 
 
     def forward_pass(self, img_bgr, height):
@@ -79,7 +69,6 @@ class SURFACE():
             return np.array([]), np.array([]), np.array([])
         keep = np.where(confidence >= self.detection_confidence_thres)[0]
         return positive_blobs[keep] * np.array([1,1,1.5]), confidence[keep], blobs
-
     
 
     def filter_blobs_indices(blobs, img):
@@ -100,6 +89,7 @@ class SURFACE():
             if SURFACE.is_blob_inside_img(blob, img):
                 keep_indices += [i]
         return np.array(keep_indices)
+    
     
     @staticmethod
     def is_blob_inside_img(blob, img):
@@ -138,8 +128,6 @@ class SURFACE():
 
         X = scaler.fit_transform(X)
         X = pca.fit_transform(X)
-
-        y[0] = 1
 
         clf.fit(X, y.T)
 

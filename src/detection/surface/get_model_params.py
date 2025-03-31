@@ -3,11 +3,11 @@ import json
 
 model_path = "../../../models/"
 
-path = f"{model_path}sift_100%480.pickle"
+path = f"{model_path}sift_100%1920.pickle"
 model = surface_utils.load_model(path)
 print(model)
 
-with open(f'{model_path}sift_100%480_params.json', 'w') as f:
+with open(f'{model_path}sift_100%1920_params.json', 'w') as f:
     json.dump({
         "svc": model[0].get_params(),
         "scaler": model[1].get_params(),

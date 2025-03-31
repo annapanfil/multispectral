@@ -9,7 +9,7 @@ from scipy import ndimage
 import itertools
 from scipy.stats import multivariate_normal
 
-from surface_utils import load_data
+import surface_utils
 
 class FeatureExtractor():
 
@@ -27,6 +27,7 @@ class FeatureExtractor():
             self.descriptor_scale = 0.666666  #input image resolution should be 1920x1080
             self.n_kps = 3
 
+
     def get_X_y(self, data_path: str):
         """ 
         Load the data and extract features and labels for training.
@@ -38,7 +39,7 @@ class FeatureExtractor():
                 - y (numpy.ndarray): Array of labels for the detected blobs.   
         """
 
-        images, gt_labels, altitudes = load_data(data_path, "train")
+        images, gt_labels, altitudes = surface_utils.load_data(data_path, "train")
 
         X = []
         y = []
@@ -46,7 +47,8 @@ class FeatureExtractor():
         for image, gt, altitude in zip(images, gt_labels, altitudes):
             X_temp, blobs = self.extract_features(image, altitude)
             if len(X_temp) == 0: continue
-            y_temp = self.get_blob_labels(blobs, gt)
+            y_temp = self.get_blob_labels(blobs, gt, image.shape[:2])
+
             X.append(X_temp)
             y.extend(y_temp)
 
@@ -100,7 +102,7 @@ class FeatureExtractor():
     
 
     @staticmethod
-    def get_blob_labels(blobs, gt_labels):
+    def get_blob_labels(blobs, gt_labels, im_shape):
         """
         Get labels for the detected blobs based on the ground truth labels.
         Treats the blobs as positive if they are within the bounding box of the ground truth labels.
@@ -112,15 +114,21 @@ class FeatureExtractor():
         Returns:
             list: labels for the detected blobs.
         """
+        h, w = im_shape
 
         labels = []
         for blob in blobs:
             x, y, r = blob
             positive = False
             for gt in gt_labels:
-                x_gt, y_gt, w_gt, h_gt = gt
+                x_gt = int(gt[0] * w)
+                y_gt = int(gt[1] * h)
+                w_gt = int(gt[2] * w)
+                h_gt = int(gt[3] * h)
+
                 if (x >= x_gt - w_gt / 2) and (x <= x_gt + w_gt / 2) and (y >= y_gt - h_gt / 2) and (y <= y_gt + h_gt / 2):
                     labels.append(1)
+                    positive = True
                     break
             if not positive:
                 labels.append(0)
