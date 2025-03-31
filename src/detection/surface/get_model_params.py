@@ -1,4 +1,4 @@
-from surface import surface_utils
+from Surface import surface_utils
 import json
 
 model_path = "../../../models/"
