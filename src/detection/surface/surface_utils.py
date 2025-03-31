@@ -10,13 +10,34 @@ import pickle
 
 
 def is_blob_ok(blob, img):
+    """
+    Checks if a circular blob is within the bounds of a given image.
+
+    Args:
+        blob (tuple): A tuple (x, y, r) representing the blob's center coordinates (x, y) 
+                      and its radius r.
+        img (numpy.ndarray): The image (height, width, channels).
+
+    Returns:
+        bool: True if the blob is entirely within the image boundaries, False otherwise.
+    """
     h,w,c = img.shape
     x = blob[0]
     y = blob[1]
     r = blob[2]
     return  not(x - r < 0 or x + r >= w or y - r < 0 or y + r >= h)
 
-def sigma_function1(height):
+def sigma_function(height):
+    """
+    Determines the sigma, scale, and threshold values based on the given height.
+    Parameters:
+        height (float): altitude from which the image was taken (in meters).
+    Returns:
+        tuple: A tuple containing:
+            - sigma (int): The sigma value based on the height.
+            - scale (float): A constant scale value (default is 0.15).
+            - thresh (float): The threshold value based on the height.
+    """
     scale = 0.15
     if height<=5:
         sigma = 6
@@ -36,7 +57,7 @@ def sigma_function1(height):
 
     return sigma, scale, thresh
 
-def extract_blobs3(img_gray, min_sigma=1, max_sigma=10, threshold=0.3, overlap=0.99):
+def extract_blobs(img_gray, min_sigma=1, max_sigma=10, threshold=0.3, overlap=0.99):
     blobs_dog = blob_dog(img_gray, min_sigma=min_sigma, max_sigma=max_sigma, threshold=threshold, overlap=overlap)
     blobs_dog[:, 2] = blobs_dog[:, 2] * sqrt(2)
     keypoints = []
@@ -55,6 +76,16 @@ def plot(img, figsize = (8,8)):
     fig.tight_layout()
 
 def filter_blobs_indices(blobs, img):
+    """
+    Filters the indices of blobs that are within the bounds of the image.
+
+    Args:
+        blobs (list): A list of blob objects to be filtered.
+        img (numpy.ndarray): The image associated with the blobs.
+
+    Returns:
+        numpy.ndarray: An array of indices corresponding to the blobs that satisfy the validation condition.
+    """
     keep_indices = []
     for i in range(len(blobs)):
         blob = blobs[i]
