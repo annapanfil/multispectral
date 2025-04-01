@@ -15,7 +15,7 @@ class FeatureExtractor():
 
     def __init__(self, resolution = "low"):
         self.layer_config = (-1, 0, 1, 2, 3, 4)
-        self.channel_indices = (0,1,2)
+        self.channel_indices = (0, 1, 2)
         self.sigma = 0.5
         self.descriptor_scale = None
         self.n_kps = None

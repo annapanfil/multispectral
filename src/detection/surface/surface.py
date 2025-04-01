@@ -1,11 +1,10 @@
-import pickle
 import numpy as np
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
 import surface_utils
-from FeatureExtractor import FeatureExtractor
+from feature_extractor import FeatureExtractor
 
 class SURFACE():
     def __init__(self, model=None, resolution = "low"):
@@ -21,14 +20,20 @@ class SURFACE():
         Args:
             data_path (str): Path to the dataset.
             split (str): Split of the dataset to visualize (e.g., "train", "val").
+        Returns:
+            tuple: A tuple containing three lists - detected blobs, confidence scores, and all blobs.
         """
         images, _, altitudes = surface_utils.load_data(data_path, split)
 
-        all_detections = []
+        all_detections, all_scores, all_proposals = [], [], []
         for image, alt in zip(images, altitudes):
             detections, scores, proposals = self.forward_pass(image, alt)
             all_detections.append(detections)
+            all_scores.append(scores)
+            all_proposals.append(proposals)
         surface_utils.show_all_detections(images, all_detections)
+
+        return all_detections, all_scores, all_proposals
 
 
     def forward_pass(self, img_bgr, height):

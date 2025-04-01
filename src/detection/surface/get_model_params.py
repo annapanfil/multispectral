@@ -1,4 +1,4 @@
-from Surface import surface_utils
+import surface_utils
 import json
 
 model_path = "../../../models/"
@@ -15,5 +15,3 @@ with open(f'{model_path}sift_100%1920_params.json', 'w') as f:
     }, f)
 
 print("Model parameters saved to JSON.")
-
-
