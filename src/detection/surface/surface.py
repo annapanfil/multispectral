@@ -1,3 +1,4 @@
+from typing import Tuple
 import numpy as np
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
@@ -7,31 +8,31 @@ import surface_utils
 from feature_extractor import FeatureExtractor
 
 class SURFACE():
-    def __init__(self, model=None, resolution = "low"):
+    def __init__(self, model=None, resolution = "low", debug=False):
         self.featureExtractor = FeatureExtractor(resolution=resolution)
         self.detection_confidence_thres = 0.25
         self.model = model
+        self.debug = debug
 
-
-    def show_detections(self, data_path, split="val"):
+    def get_detections(self, images, altitudes):
         """
         Visualize the detections on the images in the specified data path and split.
         
         Args:
-            data_path (str): Path to the dataset.
-            split (str): Split of the dataset to visualize (e.g., "train", "val").
+           images (list): List of images to visualize detections on.
+           altitudes (list): List of altitudes corresponding to each image.
         Returns:
             tuple: A tuple containing three lists - detected blobs, confidence scores, and all blobs.
         """
-        images, _, altitudes = surface_utils.load_data(data_path, split)
-
         all_detections, all_scores, all_proposals = [], [], []
         for image, alt in zip(images, altitudes):
             detections, scores, proposals = self.forward_pass(image, alt)
             all_detections.append(detections)
             all_scores.append(scores)
             all_proposals.append(proposals)
-        surface_utils.show_all_detections(images, all_detections)
+        
+        if self.debug:
+            surface_utils.show_all_detections(images, all_detections)
 
         return all_detections, all_scores, all_proposals
 
@@ -116,16 +117,16 @@ class SURFACE():
         return  not(x - r < 0 or x + r >= w or y - r < 0 or y + r >= h)
 
 
-    def train_model(self, params: dict, data_path: str):
+    def train_model(self, params: dict, data: Tuple):
         """
         Train scaler, PCA and SVC model on the provided data.
 
         Args:
         params (dict): Parameters for scaler, pca and scv. Each set of parameters is a dict.
-        data_path (str): Path to the training data.
+        data (tuple): images, ground truth bounding boxes in YOLO format and altitudes.
         """
         
-        X, y = self.featureExtractor.get_X_y(data_path)
+        X, y = self.featureExtractor.get_X_y(data)
 
         scaler = StandardScaler(**params["scaler"])
         pca = PCA(**params["pca"])

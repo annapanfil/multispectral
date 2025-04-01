@@ -1,14 +1,49 @@
+import pickle
+import json
+
+from data_handler import DataHandler
 from evaluator import Evaluator
 from surface import SURFACE
 from surface_utils import load_model
 
-path = "../../../models/sift_100%1920.pickle"
-model = load_model(path)
-surface_model = SURFACE(model, "high")
-evaluator = Evaluator(debug=True)
-
-surface_model.detection_confidence_thres = 0.5
+####################################################
+models_path = "../../../models"
 ds_path = "/home/anna/Datasets/SURFACE/full_ds"
 
-detections, scores, _ = surface_model.show_detections(ds_path, split="val")
-scores = evaluator.print_metrics(ds_path, "val", detections, scores)
+model = "sift_100%1920.pickle"
+# model = None
+resolution = (1920, 1080)
+debug = False
+
+####################################################
+
+resolution_str = "high" if resolution == (1920, 1080) else "low"
+
+dataHandler = DataHandler()
+evaluator = Evaluator(debug=debug)
+
+if model is not None:
+    # load the model
+    model = load_model(f"{models_path}/{model}")
+    surface = SURFACE(model, resolution_str, debug)
+else:
+    # Load the parameters from the JSON file
+    with open(f'{models_path}/sift_100%1920_params.json', 'r') as f:
+        params = json.load(f)
+
+    params["pca"]["n_components"] = None # to little n_samples without augmentation to have 200
+
+    # Train the model
+    surface = SURFACE(resolution=resolution_str, debug=debug)
+    train_data = dataHandler.load_and_resize(ds_path, "train", resolution)
+    surface.train_model(params, train_data)
+
+    # Save the model
+    # pickle.dump(surface.model, open(f"{models_path}/my_model1920.pickle", "wb"))
+
+surface.detection_confidence_thres = 0.5
+
+# Evaluate the model
+val_data = dataHandler.load_and_resize(ds_path, "val", resolution)
+detections, scores, proposals = surface.get_detections(val_data[0], val_data[2])
+scores = evaluator.print_metrics(val_data[0], val_data[1], detections, scores)

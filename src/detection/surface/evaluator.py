@@ -14,28 +14,27 @@ class Evaluator():
         """
         self.debug = debug
 
-    def print_metrics(self, ds_path, split, detections, confidences):
+    def print_metrics(self, images, gt_labels, detections, confidences):
         """
         Print the evaluation metrics.
         """
-        metrics = self.evaluate(ds_path, split, detections, confidences)
+        metrics = self.evaluate(images, gt_labels, detections, confidences)
 
         for metric in metrics.keys():
             print(f"{metric}: {metrics[metric]:.4f}")
 
-    def evaluate(self, ds_path, split, detections, confidences):
+    def evaluate(self, images, gt_labels, detections, confidences):
         """
         Evaluate the model using the provided dataset and split.
         Args:
-            ds_path (str): Path to the dataset.
-            split (str): Dataset split to evaluate on (e.g., "train", "val", "test").
+            images (list): List of images.
+            gt_labels (list): List of ground truth labels in yolo format.
             detections (list): List of detected objects.
             confidences (list): List of scores for each detection.
             proposals (list): List of proposals for each detection.
         Returns:
             dict: Evaluation results.
         """
-        images, gt_labels, _ = surface_utils.load_data(ds_path, split)
         gt_labels = [self._yolo2rectangle(gt, image) for gt, image in zip(gt_labels, images)]
 
         metrics = {}
@@ -59,14 +58,15 @@ class Evaluator():
         metrics["ap50"] = self.calculateAP(gt_labels, all_pred_rectangles) #TODO: add confs
         
         if self.debug:
-            surface_utils.show_images(merged_images)
+            surface_utils.show_images(merged_images, "greedy grouping")
 
-            for image, gt, pred in zip(images, gt_labels, all_pred_rectangles):
-                for g in gt:
-                    cv2.rectangle(image, (int(g.x_l), int(g.y_b)), (int(g.x_r), int(g.y_t)), (0, 255, 0), 2)
-                for p in pred:
-                    cv2.rectangle(image, (int(p.x_l), int(p.y_b)), (int(p.x_r), int(p.y_t)), (255, 0, 0), 2)
-            surface_utils.show_images(images)
+        # Show gt vs predictions
+        for image, gt, pred in zip(images, gt_labels, all_pred_rectangles):
+            for g in gt:
+                cv2.rectangle(image, (int(g.x_l), int(g.y_b)), (int(g.x_r), int(g.y_t)), (0, 255, 0), 2)
+            for p in pred:
+                cv2.rectangle(image, (int(p.x_l), int(p.y_b)), (int(p.x_r), int(p.y_t)), (255, 0, 0), 2)
+        surface_utils.show_images(images, "GT (green) vs predictions (red)")
 
         return metrics
 

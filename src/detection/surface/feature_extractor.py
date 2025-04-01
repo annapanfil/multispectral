@@ -1,6 +1,7 @@
 import itertools
 import json
 import os
+from typing import Tuple
 import cv2
 import numpy as np
 from skimage.feature import blob_dog
@@ -28,18 +29,18 @@ class FeatureExtractor():
             self.n_kps = 3
 
 
-    def get_X_y(self, data_path: str):
+    def get_X_y(self, data: Tuple):
         """ 
         Load the data and extract features and labels for training.
         Args:
-            data_path (str): Path to the directory containing images and ground truth labels.
+            data (tuple): images, ground truth bounding boxes in YOLO format and altitudes.
         Returns:
             tuple: A tuple containing:  
                 - X (numpy.ndarray): Array of blob descriptors containing histograms and SIFT features.
                 - y (numpy.ndarray): Array of labels for the detected blobs.   
         """
 
-        images, gt_labels, altitudes = surface_utils.load_data(data_path, "train")
+        images, gt_labels, altitudes = data
 
         X = []
         y = []
