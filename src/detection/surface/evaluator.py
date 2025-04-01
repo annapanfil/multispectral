@@ -1,7 +1,8 @@
 from typing import List, Tuple
 from matplotlib import pyplot as plt
 import numpy as np
-from surface_utils import Circle, Rectangle, load_data, show_images
+from surface_utils import Circle, Rectangle
+import surface_utils
 import cv2
 
 class Evaluator():
@@ -22,16 +23,6 @@ class Evaluator():
         for metric in metrics.keys():
             print(f"{metric}: {metrics[metric]:.4f}")
 
-    def yolo2rectangle(self, yolo_rects: List[Tuple], image: np.array) -> List[Rectangle]:
-        """
-        Convert YOLO rectangles to Rectangle objects.
-        """
-        h, w = image.shape[:2]
-        return [Rectangle(int((rect[0] - rect[2] / 2) * w), int((rect[1] - rect[3] / 2) * h),
-                          int((rect[0] + rect[2] / 2) * w), int((rect[1] + rect[3] / 2) * h)) for rect in yolo_rects]
-
-
-
     def evaluate(self, ds_path, split, detections, confidences):
         """
         Evaluate the model using the provided dataset and split.
@@ -44,8 +35,8 @@ class Evaluator():
         Returns:
             dict: Evaluation results.
         """
-        images, gt_labels, _ = load_data(ds_path, split)
-        gt_labels = [self.yolo2rectangle(gt, image) for gt, image in zip(gt_labels, images)]
+        images, gt_labels, _ = surface_utils.load_data(ds_path, split)
+        gt_labels = [self._yolo2rectangle(gt, image) for gt, image in zip(gt_labels, images)]
 
         metrics = {}
 
@@ -56,29 +47,30 @@ class Evaluator():
         for image, dets, confs in zip(images, detections, confidences):
             image_shape = image.shape[:2]
             circles = [Circle(int(d[0]), int(d[1]), int(d[2])) for d in dets]
-            merged_circles, merged_img = Evaluator.greedy_grouping(circles, confs, image_shape, visualize=self.debug)
+            pred_rectangles, merged_img = Evaluator.greedy_grouping(circles, confs, image_shape, resize_factor=1.5, visualize=self.debug)
             
             if self.debug: merged_images.append(merged_img)
             
-            pred_rectangles = [Evaluator._circle2rectangle(circle) for circle in merged_circles]
+            # pred_rectangles = [Evaluator._circle2rectangle(circle) for circle in merged_circles]
             all_pred_rectangles.append(pred_rectangles)
 
       
             
-        metrics["ap50"] = Evaluator.calculateAP(gt_labels, all_pred_rectangles) #TODO: add confs
+        metrics["ap50"] = self.calculateAP(gt_labels, all_pred_rectangles) #TODO: add confs
         
         if self.debug:
+            surface_utils.show_images(merged_images)
+
             for image, gt, pred in zip(images, gt_labels, all_pred_rectangles):
                 for g in gt:
                     cv2.rectangle(image, (int(g.x_l), int(g.y_b)), (int(g.x_r), int(g.y_t)), (0, 255, 0), 2)
                 for p in pred:
                     cv2.rectangle(image, (int(p.x_l), int(p.y_b)), (int(p.x_r), int(p.y_t)), (255, 0, 0), 2)
-            show_images(images)
+            surface_utils.show_images(images)
 
         return metrics
 
-    @staticmethod
-    def calculateAP(true_rects, pred_rects, confs=None, iou_threshold=0.5):
+    def calculateAP(self, true_rects, pred_rects, confs=None, iou_threshold=0.5):
         """
         Calculate the precision for a given IoU threshold. Rectangles should be from the same class.
         Args:
@@ -90,7 +82,7 @@ class Evaluator():
             float: AP result.
         """
 
-        tp = Evaluator._get_tp(true_rects, pred_rects, iou_threshold)
+        tp = self._get_tp(true_rects, pred_rects, iou_threshold)
         n_true_rects = sum(len(tr_img) for tr_img in true_rects)
 
         if confs is not None:
@@ -129,8 +121,7 @@ class Evaluator():
 
         return ap
 
-    @staticmethod
-    def _get_tp(true_rects, pred_rects, iou_threshold):
+    def _get_tp(self, true_rects, pred_rects, iou_threshold):
         """
         Calculate True Positives (TP) based on IoU threshold.
         Args:
@@ -146,18 +137,27 @@ class Evaluator():
             iou_matrix = np.array([[Evaluator._iou_rectangles(p, g) for g in true_boxes] for p in pred_boxes])
 
             tp_image = np.zeros(len(pred_boxes))
-
             assigned_gt = set()  # track assigned ground truth boxes
 
             for i in range(len(pred_boxes)):
                 matches = np.where(iou_matrix[i] >= iou_threshold)[0]
-                if matches.any():
+                if matches.size > 0:
                     best_match_idx = matches[np.argmax(iou_matrix[i, matches])]
                     if best_match_idx not in assigned_gt:
                         tp_image[i] = 1
                         assigned_gt.add(best_match_idx)
-
+            
             tp.extend(tp_image)
+
+        if self.debug:
+            print("TP for images: { ", end="")
+            pos = 0
+            for i, n in enumerate([len(p) for p in pred_rects]):
+                tp_image = tp[pos:pos + n]
+                pos += n
+                print("{i}: {tp_s}".format(i=i, tp_s=int(sum(tp_image))), end=", ")
+            print(" }")
+        
 
         return np.array(tp, dtype=bool)
 
@@ -166,12 +166,6 @@ class Evaluator():
         """
         Calculate the Intersection over Union (IoU) for two rectangles.
         """
-        # im = np.zeros((max(rect1.y_t, rect2.y_t), max(rect1.x_r, rect2.x_r), 3), dtype=np.uint8)
-        # cv2.rectangle(im, (rect1.x_l, rect1.y_b), (rect1.x_r, rect1.y_t), (0,255,0), -1)
-        # cv2.rectangle(im, (rect2.x_l, rect2.y_b), (rect2.x_r, rect2.y_t), (255,0,0), -1)
-        # plt.imshow(im)
-        # plt.show()
-
         x_left = max(rect1.x_l, rect2.x_l)
         x_right = min(rect1.x_r, rect2.x_r)
         y_bottom = max(rect1.y_b, rect2.y_b)
@@ -191,7 +185,7 @@ class Evaluator():
 
 
     @staticmethod
-    def greedy_grouping(circles: List[Circle], confs: List, image_shape: Tuple, visualize=False) -> Tuple[List, np.array]:
+    def greedy_grouping(circles: List[Circle], confs: List, image_shape: Tuple, resize_factor=1.5, visualize=False) -> Tuple[List, np.array]:
         """
         Merge intersecting circles
         #TODO: Merge confidence scores
@@ -204,25 +198,32 @@ class Evaluator():
         merged_circles_mask = np.zeros(image_shape, dtype=np.uint8)
 
         for circle in circles:
-            current_circle_mask = Evaluator._create_circle_mask(circle, image_shape)
+            enlarged_circle = Circle(circle.x, circle.y, int(circle.r * resize_factor))
+            current_circle_mask = Evaluator._create_circle_mask(enlarged_circle, image_shape)
             merged_circles_mask = cv2.bitwise_or(merged_circles_mask, current_circle_mask)
 
-        image, contours, _ = cv2.findContours(merged_circles_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        _, contours, _ = cv2.findContours(merged_circles_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         if visualize:
             merged_circles_mask = cv2.cvtColor(merged_circles_mask, cv2.COLOR_GRAY2RGB)
 
-        merged_circles = []
+        merged_rectangles = []
         for contour in contours:
-            (x, y), r = cv2.minEnclosingCircle(contour)
-            x, y, r = int(x), int(y), int(r)
-            merged_circles.append(Circle(x, y, r))
+            # find original circles in the groups
+            group_circles = [circle for circle in circles if cv2.pointPolygonTest(contour, (circle.x, circle.y), False) >= 0]
 
+            if group_circles:
+                x_min = min(c.x - c.r for c in group_circles)
+                y_min = min(c.y - c.r for c in group_circles)
+                x_max = max(c.x + c.r for c in group_circles)
+                y_max = max(c.y + c.r for c in group_circles)
 
-            if visualize:
-                cv2.circle(merged_circles_mask, (x, y), r, (255, 0, 0), 5)
+                merged_rectangles.append(Rectangle(x_min, y_min, x_max, y_max))
 
-        return merged_circles, merged_circles_mask
+                if visualize:
+                    cv2.rectangle(merged_circles_mask, (x_min, y_min), (x_max, y_max), (255, 0, 0), 5)
+
+        return merged_rectangles, merged_circles_mask
 
     @staticmethod
     def _create_circle_mask(circle: Circle, image_shape: Tuple[int, int]) -> np.array:
@@ -231,8 +232,18 @@ class Evaluator():
         cv2.circle(mask, (circle.x, circle.y), circle.r, 255, -1)
         return mask
 
+    @staticmethod
     def _circle2rectangle(circle: Circle) -> Tuple:
         """ Convert circle to rectangle """
 
         x, y, r = circle.x, circle.y, circle.r
         return Rectangle(max(x - r, 0), max(y - r, 0), x + r, y + r)
+    
+    @staticmethod
+    def _yolo2rectangle(yolo_rects: List[Tuple], image: np.array) -> List[Rectangle]:
+        """
+        Convert YOLO rectangles to Rectangle objects.
+        """
+        h, w = image.shape[:2]
+        return [Rectangle(int((rect[0] - rect[2] / 2) * w), int((rect[1] - rect[3] / 2) * h),
+                          int((rect[0] + rect[2] / 2) * w), int((rect[1] + rect[3] / 2) * h)) for rect in yolo_rects]
