@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from sklearn.metrics import balanced_accuracy_score
 
 import surface_utils
 from feature_extractor import FeatureExtractor
@@ -36,6 +37,23 @@ class SURFACE():
 
         return all_detections, all_scores, all_proposals
 
+    def get_accuracy(self, data):
+        """
+        Classify the blobs using the trained model and get balanced accuracy score.
+        """
+        if self.model is None:
+            raise ValueError("Model is not trained. Please train the model before using it.")
+        
+        clf, scaler, pca = self.model
+
+        X, y = self.featureExtractor.get_X_y(data)
+
+        X = scaler.transform(X)
+        X = pca.transform(X)
+
+        acc = balanced_accuracy_score(y, clf.predict(X))
+
+        return acc
 
     def forward_pass(self, img_rgb, height):
         """
