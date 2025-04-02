@@ -11,11 +11,10 @@ from feature_extractor import FeatureExtractor
 class SURFACE():
     def __init__(self, model=None, resolution = "low", debug=False):
         self.featureExtractor = FeatureExtractor(resolution=resolution)
-        self.detection_confidence_thres = 0.25
         self.model = model
         self.debug = debug
 
-    def get_detections(self, images, altitudes):
+    def get_detections(self, images, altitudes, confidence_thres=0.25):
         """
         Visualize the detections on the images in the specified data path and split.
         
@@ -27,7 +26,7 @@ class SURFACE():
         """
         all_detections, all_scores, all_proposals = [], [], []
         for image, alt in zip(images, altitudes):
-            detections, scores, proposals = self.forward_pass(image, alt)
+            detections, scores, proposals = self.forward_pass(image, alt, confidence_thres)
             all_detections.append(detections)
             all_scores.append(scores)
             all_proposals.append(proposals)
@@ -55,7 +54,7 @@ class SURFACE():
 
         return acc
 
-    def forward_pass(self, img_rgb, height):
+    def forward_pass(self, img_rgb, height, confidence_thres):
         """
         Predict the litter location in the image using the trained model.
         
@@ -91,7 +90,8 @@ class SURFACE():
             confidence = confidence[keep_indices]
         else:
             return np.array([]), np.array([]), np.array([])
-        keep = np.where(confidence >= self.detection_confidence_thres)[0]
+        keep = np.where(confidence >= confidence_thres)[0]
+
         return positive_blobs[keep] * np.array([1,1,1.5]), confidence[keep], blobs
     
 

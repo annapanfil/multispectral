@@ -6,13 +6,16 @@ import surface_utils
 import cv2
 
 class Evaluator():
-    def __init__(self, debug=False):
+    def __init__(self, debug=False, merging_conf_threshold=0.5):
         """
         Initialize the Evaluator class.
         Args:
             debug (bool): If True, shows debug photos.
+            merging_conf_threshold (float): The images with confidence scores below this threshold will be merged via greedy grouping and finally shown. The rest is only used for calculating AP
+        
         """
         self.debug = debug
+        self.merging_conf_threshold = merging_conf_threshold
 
     def print_metrics(self, images, gt_labels, detections, confidences):
         """
@@ -40,33 +43,39 @@ class Evaluator():
         metrics = {}
 
         all_pred_rectangles = []
+        all_pred_confs = []
         if self.debug:
             merged_images = []
 
         for image, dets, confs in zip(images, detections, confidences):
             image_shape = image.shape[:2]
             circles = [Circle(int(d[0]), int(d[1]), int(d[2])) for d in dets]
-            pred_rectangles, merged_img = Evaluator.greedy_grouping(circles, confs, image_shape, resize_factor=1.5, visualize=self.debug)
+            pred_rectangles, pred_confs, merged_img = self.greedy_grouping(circles, confs, image_shape, resize_factor=1.5, visualize=self.debug)
             
             if self.debug: merged_images.append(merged_img)
             
             # pred_rectangles = [Evaluator._circle2rectangle(circle) for circle in merged_circles]
             all_pred_rectangles.append(pred_rectangles)
+            all_pred_confs.append(pred_confs)
 
       
             
-        metrics["ap50"] = self.calculateAP(gt_labels, all_pred_rectangles) #TODO: add confs
+        metrics["ap50"] = self.calculateAP(gt_labels, all_pred_rectangles, all_pred_confs)
         
         if self.debug:
             surface_utils.show_images(merged_images, "greedy grouping")
 
         # Show gt vs predictions
-        for image, gt, pred in zip(images, gt_labels, all_pred_rectangles):
-            for g in gt:
-                cv2.rectangle(image, (int(g.x_l), int(g.y_b)), (int(g.x_r), int(g.y_t)), (0, 255, 0), 4)
-            for p in pred:
-                cv2.rectangle(image, (int(p.x_l), int(p.y_b)), (int(p.x_r), int(p.y_t)), (255, 0, 0), 4)
-        surface_utils.show_images(images, "GT (green) vs predictions (red)")
+        for i in range(len(images)):
+            for g in gt_labels[i]:
+                cv2.rectangle(images[i], (int(g.x_l), int(g.y_b)), (int(g.x_r), int(g.y_t)), (0, 255, 0), 4)
+            for j, p in enumerate(all_pred_rectangles[i]):
+                if all_pred_confs[i][j] >= self.merging_conf_threshold:
+                    cv2.rectangle(images[i], (int(p.x_l), int(p.y_b)), (int(p.x_r), int(p.y_t)), (255, 0, 0), 4)
+                else:
+                    cv2.rectangle(images[i], (int(p.x_l), int(p.y_b)), (int(p.x_r), int(p.y_t)), (0, 0, 255), 4)
+
+        surface_utils.show_images(images, f"GT (green), predictions (red), predictions with confidence < {self.merging_conf_threshold} (blue)")
 
         return metrics
 
@@ -87,8 +96,12 @@ class Evaluator():
 
         if confs is not None:
             # Sort by confidence score
-            sorted_indices = np.argsort(-np.array(confs))
-            tp, confs = tp[sorted_indices], np.array(confs)[sorted_indices]
+            sorted_data = [sorted(zip(c, t), key=lambda x: -x[0]) for c, t in zip(confs, tp)]
+            confs, tp = zip(*[zip(*d) if d else ([], []) for d in sorted_data])
+            tp = list(map(list, tp))
+
+        tp = [el for sublist in tp for el in sublist]    
+        tp = np.array(tp)
 
         # Calculate precision and recall
         x, prec_values = np.linspace(0, 1, 1000), []
@@ -147,7 +160,7 @@ class Evaluator():
                         tp_image[i] = 1
                         assigned_gt.add(best_match_idx)
             
-            tp.extend(tp_image)
+            tp.append(tp_image)
 
         if self.debug:
             print("TP for images: { ", end="")
@@ -159,7 +172,7 @@ class Evaluator():
             print(" }")
         
 
-        return np.array(tp, dtype=bool)
+        return tp
 
     @staticmethod
     def _iou_rectangles(rect1: Rectangle, rect2: Rectangle) -> float:
@@ -184,20 +197,20 @@ class Evaluator():
         return intersection / union
 
 
-    @staticmethod
-    def greedy_grouping(circles: List[Circle], confs: List, image_shape: Tuple, resize_factor=1.5, visualize=False) -> Tuple[List, np.array]:
+    def greedy_grouping(self, circles: List[Circle], confs: List, image_shape: Tuple, resize_factor=1.5, visualize=False) -> Tuple[List, np.array]:
         """
-        Merge intersecting circles
-        #TODO: Merge confidence scores
+        Merge intersecting circles. Mean confidence of all circles in group is used as a group confidence.
         Args:
             circles (list): List of Circle objects.
             confs (list): List of confidence scores for each circle.
             image_shape (tuple): Shape of the image (height, width).
         """
-
+        # filter circles to merge
+        circles_to_merge = [circle for circle, conf in zip(circles, confs) if conf >= self.merging_conf_threshold]
+     
         merged_circles_mask = np.zeros(image_shape, dtype=np.uint8)
 
-        for circle in circles:
+        for circle in circles_to_merge:
             enlarged_circle = Circle(circle.x, circle.y, int(circle.r * resize_factor))
             current_circle_mask = Evaluator._create_circle_mask(enlarged_circle, image_shape)
             merged_circles_mask = cv2.bitwise_or(merged_circles_mask, current_circle_mask)
@@ -208,9 +221,10 @@ class Evaluator():
             merged_circles_mask = cv2.cvtColor(merged_circles_mask, cv2.COLOR_GRAY2RGB)
 
         merged_rectangles = []
+        merged_confs = []
         for contour in contours:
             # find original circles in the groups
-            group_circles = [circle for circle in circles if cv2.pointPolygonTest(contour, (circle.x, circle.y), False) >= 0]
+            group_circles = [circle for circle in circles_to_merge if cv2.pointPolygonTest(contour, (circle.x, circle.y), False) >= 0]
 
             if group_circles:
                 x_min = min(c.x - c.r for c in group_circles)
@@ -219,11 +233,22 @@ class Evaluator():
                 y_max = max(c.y + c.r for c in group_circles)
 
                 merged_rectangles.append(Rectangle(x_min, y_min, x_max, y_max))
+                merged_confs.append(np.mean([confs[circles.index(c)] for c in group_circles]))
 
                 if visualize:
                     cv2.rectangle(merged_circles_mask, (x_min, y_min), (x_max, y_max), (255, 0, 0), 5)
 
-        return merged_rectangles, merged_circles_mask
+        # process other circles and merge
+        for circle, conf in zip(circles, confs):
+            if circle not in circles_to_merge:
+                rectangle = Evaluator._circle2rectangle(circle)
+                merged_rectangles.append(rectangle)
+                merged_confs.append(conf)
+
+                if visualize:
+                    cv2.rectangle(merged_circles_mask, (rectangle.x_l, rectangle.y_b), (rectangle.x_r, rectangle.y_t), (0, 255, 0), 5)
+
+        return merged_rectangles, merged_confs, merged_circles_mask
 
     @staticmethod
     def _create_circle_mask(circle: Circle, image_shape: Tuple[int, int]) -> np.array:

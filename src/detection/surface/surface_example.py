@@ -2,6 +2,7 @@ import pickle
 import json
 
 from matplotlib import pyplot as plt
+import numpy as np
 
 from data_handler import DataHandler
 from evaluator import Evaluator
@@ -12,15 +13,15 @@ from surface_utils import load_model
 models_path = "../../../models"
 ds_path = "/home/anna/Datasets/SURFACE/full_ds"
 
-model = "sift_100%480.pickle"
-model = None
-resolution = (1280, 720) #(480, 270) #(1280, 720)  # # (1920, 1080) 
+model = "sift_100%1920.pickle"
+# model = None
+resolution = (1920, 1080) #(1920, 1080) # #(480, 270) #(1280, 720)  # # 
 debug = False
 
+# resolution_str = "high" if resolution == (1920, 1080) else "low"
+resolution_str = "high"
 ####################################################
 
-# resolution_str = "high" if resolution == (1920, 1080) else "low"
-resolution_str = "low"
 
 dataHandler = DataHandler()
 evaluator = Evaluator(debug=debug)
@@ -46,11 +47,16 @@ else:
 
 
 # Evaluate the model
-surface.detection_confidence_thres = 0.5
 val_data = dataHandler.load_and_resize(ds_path, "val", resolution)
 
-detections, scores, proposals = surface.get_detections(val_data[0], val_data[2])
-scores = evaluator.print_metrics(val_data[0], val_data[1], detections, scores)
+# detections, scores, proposals = surface.get_detections(val_data[0], val_data[2],  0.5)
+
+all_detections, all_scores, all_blobs = surface.get_detections(val_data[0], val_data[2],  0)
+
+for i in range(len(all_detections)):
+    print(f"{len(all_detections[i])} litter out of {len(all_blobs[i])} blobs. Min confidence: {min(all_scores[i]).round(2) if all_scores[i].size > 0 else '-'}")
+
+scores = evaluator.print_metrics(val_data[0], val_data[1], all_detections, all_scores)
 
 acc = surface.get_accuracy(val_data)
 print("Accuracy:", acc.round(4))
