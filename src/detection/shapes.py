@@ -7,20 +7,21 @@ Circle = namedtuple("Circle", ["x", "y", "r"])
 class Rectangle:
 
     def __init__(self, x_l, y_b, x_r, y_t, label="Rectangle"):
-        self.x_l = x_l
-        self.y_b = y_b
-        self.x_r = x_r
-        self.y_t = y_t
+        self.x_l = int(x_l)
+        self.y_b = int(y_b)
+        self.x_r = int(x_r)
+        self.y_t = int(y_t)
         self.label = label
 
     @classmethod
-    def from_center(cls, center: tuple, width: float, height: float, label="Rectangle"):
-        center_x, center_y = center
-        x_l = center_x - width / 2
-        y_b = center_y - height / 2
-        x_r = center_x + width / 2
-        y_t = center_y + height / 2
-        return cls(x_l, y_b, x_r, y_t, label)
+    def from_xywh(cls, center, width, height, label="Rectangle"):
+        return cls(
+            x_l = int(center[0] - width / 2),
+            y_b = int(center[1] - height / 2),
+            x_r = int(center[0] + width / 2),
+            y_t = int(center[1] + height / 2),
+            label = label
+        )
 
     def __str__(self):
         return f"Rectangle(x_l={self.x_l:.2f}, y_b={self.y_b:.2f}, x_r={self.x_r:.2f}, y_t={self.y_t:.2f}, label={self.label})"
@@ -78,6 +79,13 @@ class Rectangle:
     def __or__(self, other):
         """ union """
         return self.union(other)
+    
+    def __mul__(self, other):
+        """ Resizing """
+        if isinstance(other, (int, float)):
+            return Rectangle.from_xywh(self.center, self.width * other, self.height * other)
+        else:
+            raise ValueError("Multiplication is only supported with scalar values.")
 
     def draw(self, image, color=(0, 0, 255), thickness=2):
         """ Draw the rectangle on the image """

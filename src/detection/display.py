@@ -6,26 +6,30 @@ from typing import List, Tuple
 from detection.shapes import Rectangle
 
 
-def show_images(images, titles=None, show=True):
-    num_images = len(images)
 
-    if titles is None:
-        titles = ["Image {}".format(i + 1) for i in range(num_images)]
+def show_images(images, title):
+    """
+    Display a grid of images.
+    """
 
-    figsize = (5 * num_images, 5)
-    figure, _ = plt.subplots(1, num_images, figsize=figsize)
-    for i in range(num_images):
-        plt.subplot(1, num_images, i + 1)
-        if len(images[i].shape) == 3:  # Color image
-            img_display = cv2.cvtColor(images[i], cv2.COLOR_BGR2RGB)
-            plt.imshow(img_display)
-        else:  # Grayscale image
-            plt.imshow(images[i], cmap="gray")
-        plt.title(titles[i])
-        plt.axis("off")
+    aspect_ratio = 4 / 3
+    cols = int(np.ceil(np.sqrt(len(images) * aspect_ratio))) 
+    rows = int(np.ceil(len(images) / cols))
+
+    figure, axes = plt.subplots(rows, cols, figsize=(cols * 3, rows * 3))
+    axes = axes.flatten()
+
+    for i, image in enumerate(images):
+        ax = axes[i]
+        ax.imshow(image)
+        ax.axis('off')
+
+    for i in range(len(images), len(axes)):
+        axes[i].axis('off')
+
     plt.tight_layout()
-    if show:
-        plt.show()
+    plt.suptitle(title)
+    plt.show()
 
     return figure
 
@@ -51,48 +55,3 @@ def draw_rectangles(
         )
 
     return image
-
-
-def draw_litter(
-    image: np.array,
-    pool: Rectangle,
-    blob_contours,
-    bbs: List[Rectangle] = None,
-    dog_image: np.array = None,
-    mask: np.array = None,
-    out_path: str = None,
-    show: bool = False,
-    color=(100, 200, 0),
-) -> np.ndarray:
-    im_pool = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB) if len(image.shape) == 2 else image
-    cv2.rectangle(im_pool, (pool.x_l, pool.y_b), (pool.x_r, pool.y_t), (0, 0, 255), 5)
-
-    cropped_image = image[pool.y_b : pool.y_t, pool.x_l : pool.x_r]
-
-    # Draw the contours
-    im_detected = (
-        cv2.cvtColor(cropped_image, cv2.COLOR_GRAY2RGB)
-        if len(cropped_image.shape) == 2
-        else cropped_image
-    )
-
-    cv2.drawContours(im_detected, blob_contours, -1, color, 2)
-
-    if bbs is not None:
-        draw_rectangles(im_detected, bbs, color)
-
-    if dog_image is not None and mask is not None:
-        figure = show_images(
-            [im_pool, dog_image, mask, im_detected],
-            ["detected pool", "after DOG", "mask (DOG + threshold)", "litter found"],
-            show=show,
-        )
-    else:
-        figure = show_images([im_pool, im_detected], ["detected pool", "litter found"], show=show)
-    if out_path != "":
-        figure.savefig(f"{out_path}_detected_verb.png")
-        cv2.imwrite(f"{out_path}_detected.png", im_detected)
-
-    plt.close()
-
-    return im_detected

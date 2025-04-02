@@ -1,102 +1,58 @@
-"""Main file for blob detection and pile size estimation."""
+"""Main file for detection and pile positioning."""
 
-import os
-
+import cv2
 from matplotlib import pyplot as plt
 import numpy as np
+import os
+from ultralytics import YOLO
 
-from detection.display import draw_litter
-import hydra
-import cv2
+from detection.shapes import Rectangle
+from detection.utils import get_real_piles_size, greedy_grouping
 
-from detection.litter_detection import (
-    find_litter,
-    get_real_piles_size,
-    group_contours,
-    pool2abs_point,
-)
+def main():
+    """Main function for detection and pile positioning."""
+    POOL_HEIGHT = 0.5  # m
+    CAM_HFOV = np.deg2rad(49.6)  # rad
+    CAM_VFOV = np.deg2rad(38.3)  # rad
 
-POOL_HEIGHT = 1.5  # m
+    im_dir = "/home/anna/Datasets/created/pool-form1_pool-3-channels_random/images/val"
+    model_path = "../models/pool-form1_pool-3-channels_random_best.pt"
+    debug = False
 
+    for im_name in os.listdir(im_dir):
+        # Read the image
+        # TODO: Read the raw channels, align them and convert to desired format
+        image = cv2.imread(f"{im_dir}/{im_name}")
+        altitude = int(im_name.split("_")[3])  # Extract the altitude from the image name
 
-@hydra.main(config_path="../../conf/detection", config_name="testing", version_base=None)
-def main(cfg):
-    # print(cfg)
-    im_names = [f"{x}_meanRE.png" for x in cfg.paths.im_numbers]
-    verb = False
+        # Predict from yolo
+        model = YOLO(model_path)  # load a pretrained model
 
-    if not os.path.exists(cfg.paths.out):
-        os.makedirs(cfg.paths.out)
-        print(f"Created directory {cfg.paths.out}")
+        results = model.predict(source=image, conf=0.3, save=False)
 
-    for im_name in im_names:
-        image = cv2.imread(f"{cfg.paths.base}/{im_name}", cv2.IMREAD_GRAYSCALE)
-        altitude = int(im_name.split("_")[-2])  # Extract the altitude from the image name
+        pred_bbs = results[0].boxes.xyxy.cpu().numpy()
+        pred_bbs = [Rectangle(*bb, "rect") for bb in pred_bbs]
 
-        blob_contours, bbs, pool, dog_image, mask = find_litter(
-            image.copy(),
-            im_name,
-            sigma=cfg.params.sigma_a * altitude + cfg.params.sigma_b,
-            # sigma=cfg.params.sigma,
-            dog_threshold=cfg.params.dog_threshold,
-            size_max_threshold_perc=cfg.params.size_max_threshold_perc,
-            verb=verb,
-        )
+        # Merge piles
+        merged_bbs, merged_img = greedy_grouping(pred_bbs, image.shape[:2], resize_factor=1.5, visualize=True)
 
-        piles_contours, piles_rectangles, piles_rectangles_for_drawing = group_contours(
-            blob_contours, 70, image[pool.y_b : pool.y_t, pool.x_l : pool.x_r].copy()
-        )
+        # TODO: Get position in the world
+        sizes = get_real_piles_size(image.shape[:2], altitude - POOL_HEIGHT, CAM_HFOV, CAM_VFOV, merged_bbs)
 
-        piles_rectangles_abs = [
-            [pool2abs_point(center, pool), dims, angle] for center, dims, angle in piles_rectangles
-        ]
+        # Show
+        if debug:
+            plt.imshow(merged_img)
+            plt.show()
 
-        sizes = get_real_piles_size(
-            image.shape[:2],
-            altitude - POOL_HEIGHT,
-            np.deg2rad(49.6),
-            np.deg2rad(38.3),
-            piles_rectangles_abs,
-        )
+        for rect, size in zip(pred_bbs, sizes):
+            rect.draw(image, color=(0, 255, 0), thickness=2)
+            text = f"{size[0]*100:.0f}x{size[1]*100:.0f}" # cm
+            cv2.putText(image, text, (rect.x_l, rect.y_b), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
-        # show
-        im_detected = draw_litter(
-            image.copy(),
-            pool,
-            blob_contours,
-            bbs,
-            dog_image,
-            mask,
-            f"{cfg.paths.out}/{im_name.split('/')[-1][:-4]}",
-            color=(0, 0, 255),
-        )
-        cv2.drawContours(im_detected, piles_contours, -1, (255, 0, 0), 2)
-        cv2.drawContours(im_detected, piles_rectangles_for_drawing, -1, (255, 0, 0), 2)
-
-        # add text
-        for size, box, rect in zip(sizes, piles_rectangles_for_drawing, piles_rectangles):
-            text_mask = np.zeros_like(im_detected)
-            position = (int(box[0][0]), int(box[0][1]) - 5)
-
-            cv2.putText(
-                text_mask,
-                f"{size[0]*100:.0f} x {size[1]*100:.0f}cm",
-                position,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.3,
-                (255, 255, 255),
-                1,
-            )
-
-            rotation_matrix = cv2.getRotationMatrix2D(position, 90 - rect[2], 1)
-            rotated_text = cv2.warpAffine(
-                text_mask, rotation_matrix, (im_detected.shape[1], im_detected.shape[0])
-            )
-            im_detected = cv2.addWeighted(im_detected, 1, rotated_text, 1, 0)
-
-        plt.imshow(im_detected)
+        plt.imshow(image)
         plt.show()
-
+        
+        # TODO: Send somewhere
 
 if __name__ == "__main__":
     main()
