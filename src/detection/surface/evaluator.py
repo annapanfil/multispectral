@@ -63,9 +63,9 @@ class Evaluator():
         # Show gt vs predictions
         for image, gt, pred in zip(images, gt_labels, all_pred_rectangles):
             for g in gt:
-                cv2.rectangle(image, (int(g.x_l), int(g.y_b)), (int(g.x_r), int(g.y_t)), (0, 255, 0), 2)
+                cv2.rectangle(image, (int(g.x_l), int(g.y_b)), (int(g.x_r), int(g.y_t)), (0, 255, 0), 4)
             for p in pred:
-                cv2.rectangle(image, (int(p.x_l), int(p.y_b)), (int(p.x_r), int(p.y_t)), (255, 0, 0), 2)
+                cv2.rectangle(image, (int(p.x_l), int(p.y_b)), (int(p.x_r), int(p.y_t)), (255, 0, 0), 4)
         surface_utils.show_images(images, "GT (green) vs predictions (red)")
 
         return metrics

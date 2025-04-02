@@ -37,12 +37,12 @@ class SURFACE():
         return all_detections, all_scores, all_proposals
 
 
-    def forward_pass(self, img_bgr, height):
+    def forward_pass(self, img_rgb, height):
         """
         Predict the litter location in the image using the trained model.
         
         Args:
-            img_bgr (numpy.ndarray): Input image in BGR format.
+            img_rgb (numpy.ndarray): Input image in RGB format.
             height (float): altitude of the image in meters.
             
         Returns:
@@ -56,7 +56,7 @@ class SURFACE():
         
         clf, scaler, pca = self.model
         
-        X, blobs = self.featureExtractor.extract_features(img_bgr, height)
+        X, blobs = self.featureExtractor.extract_features(img_rgb, height)
         if len(blobs)< 1: return np.array([]), np.array([]), np.array([])
         X = scaler.transform(X)
         X = pca.transform(X)
@@ -67,7 +67,7 @@ class SURFACE():
         positive = np.where(distances > 0)[0]
         confidence = scores[positive][:, 1]
         positive_blobs = blobs[positive]
-        keep_indices = SURFACE.filter_blobs_indices(positive_blobs, img_bgr)
+        keep_indices = SURFACE.filter_blobs_indices(positive_blobs, img_rgb)
         if len(keep_indices) > 0:
             positive_blobs = positive_blobs[keep_indices]
             confidence = confidence[keep_indices]

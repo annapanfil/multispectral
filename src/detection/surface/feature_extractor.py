@@ -58,11 +58,11 @@ class FeatureExtractor():
 
         return X, y
 
-    def extract_features(self, img_bgr, height):
+    def extract_features(self, img_rgb, height):
         """
         Performs blob detection and calculates histograms and SIFT descriptors for the blobs.
         Args:
-            img_bgr (numpy.ndarray): Input image in BGR format.
+            img_rgb (numpy.ndarray): Input image in rgb format.
             height (float): altitude of the image in meters.
         Returns:
             tuple:
@@ -73,12 +73,12 @@ class FeatureExtractor():
             layer configuration (`self.layer_config`), and descriptor scale (`self.descriptor_scale`).
         """
         sigma_blobs, detection_scale, thresh = FeatureExtractor.sigma_function(height)
-        blob_detection_img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+        blob_detection_img = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
         blob_detection_img = cv2.resize(blob_detection_img, (int(blob_detection_img.shape[1] * detection_scale),
                                                              int(blob_detection_img.shape[0] * detection_scale)))
-        descriptor_img = cv2.resize(img_bgr, (int(round(img_bgr.shape[1] * self.descriptor_scale)),
-                                          int(round(img_bgr.shape[0] * self.descriptor_scale))))
-        descriptor_img_gray = cv2.cvtColor(descriptor_img, cv2.COLOR_BGR2GRAY)
+        descriptor_img = cv2.resize(img_rgb, (int(round(img_rgb.shape[1] * self.descriptor_scale)),
+                                          int(round(img_rgb.shape[0] * self.descriptor_scale))))
+        descriptor_img_gray = cv2.cvtColor(descriptor_img, cv2.COLOR_RGB2GRAY)
 
         blobs, _ = FeatureExtractor.extract_blobs(blob_detection_img, min_sigma=sigma_blobs, max_sigma=sigma_blobs + 1,
                                   threshold=thresh)
@@ -184,11 +184,11 @@ class FeatureExtractor():
 
     @staticmethod
     def get_colorspaces(img):
-        lab_img = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
-        # rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        # hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        # ycrcb_img = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
-        # yuv_img = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
+        lab_img = cv2.cvtColor(img, cv2.COLOR_RGB2Lab)
+        # rgb_img = cv2.cvtColor(img, cv2.COLOR_RGB2RGB)
+        # hsv_img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+        # ycrcb_img = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
+        # yuv_img = cv2.cvtColor(img, cv2.COLOR_RGB2YUV)
         l,a,b = cv2.split(lab_img)
         # r,g,bb = cv2.split(rgb_img)
         # h,s,v = cv2.split(hsv_img)
@@ -256,7 +256,6 @@ class FeatureExtractor():
     @staticmethod
     def compute_angle(img_gray, keypoint, scale=0.5, std=sqrt(2)):
         h, w = img_gray.shape
-        #img_gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
         blur_shape = (int(h * scale), int(w * scale))
         blurred = ndimage.filters.gaussian_filter(cv2.resize(img_gray, (blur_shape[1], blur_shape[0])), std)
         kp_blur = cv2.KeyPoint(keypoint.pt[0] * scale, keypoint.pt[1] * scale, _size=keypoint.size * scale)
