@@ -1,3 +1,4 @@
+import time
 from typing import List, Tuple
 import cv2
 
@@ -6,7 +7,7 @@ from detection.shapes import Rectangle
 from processing.consts import CHANNELS
 from dataset_creation.create_dataset import apply_formula
 
-def prepare_image(im_aligned: np.array, channels: List, is_complex: bool, new_size: Tuple[int, int]) -> np.array:
+def prepare_image(img_aligned: np.array, channels: List, is_complex: bool, new_size: Tuple[int, int]) -> np.array:
     """ Get the correct channels for prediction and resize the image.
     Args:
         im_aligned (np.array): The aligned image.
@@ -16,15 +17,20 @@ def prepare_image(im_aligned: np.array, channels: List, is_complex: bool, new_si
     Returns:
         np.array: The prepared image.
     """
-    height, width = im_aligned.shape[:2]
+    # normalize to [0, 255]
+    for i in range(0, img_aligned.shape[2]):
+        img_aligned[:, :, i] = (img_aligned[:, :, i] - np.min(img_aligned[:, :, i])) / (np.max(img_aligned[:, :, i]) - np.min(img_aligned[:, :, i])) * 255
+
+    height, width = img_aligned.shape[:2]
+
     
     image = np.zeros((height, width, len(channels)))
 
     for i, channel in enumerate(channels):
         if channel in CHANNELS:
-            image[:, :, i] = im_aligned[:, :, CHANNELS[channel]]
+            image[:, :, i] = img_aligned[:, :, CHANNELS[channel]]
         else:
-            image[:, :, i] = apply_formula(im_aligned, channel, is_complex)
+            image[:, :, i] = apply_formula(img_aligned, channel, is_complex)
 
     image = cv2.resize(image, new_size)
     image = image.astype(np.uint8)
@@ -92,3 +98,12 @@ def get_real_piles_size(
 
         sizes.append((width_m, height_m))
     return sizes
+
+def time_decorator(func):
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        print(f"{func.__name__} took {end - start:.6f} s")
+        return result
+    return wrapper
