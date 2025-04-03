@@ -3,7 +3,33 @@ import cv2
 
 import numpy as np
 from detection.shapes import Rectangle
+from processing.consts import CHANNELS
+from dataset_creation.create_dataset import apply_formula
 
+def prepare_image(im_aligned: np.array, channels: List, is_complex: bool, new_size: Tuple[int, int]) -> np.array:
+    """ Get the correct channels for prediction and resize the image.
+    Args:
+        im_aligned (np.array): The aligned image.
+        channels (list): List of channels or formulas to use.
+        is_complex (bool): Whether the image is complex or not.
+        new_size (tuple): New size for the image.
+    Returns:
+        np.array: The prepared image.
+    """
+    height, width = im_aligned.shape[:2]
+    
+    image = np.zeros((height, width, len(channels)))
+
+    for i, channel in enumerate(channels):
+        if channel in CHANNELS:
+            image[:, :, i] = im_aligned[:, :, CHANNELS[channel]]
+        else:
+            image[:, :, i] = apply_formula(im_aligned, channel, is_complex)
+
+    image = cv2.resize(image, new_size)
+    image = image.astype(np.uint8)
+
+    return image
 
 def greedy_grouping(rectangles: List[Rectangle], image_shape: Tuple, resize_factor=1.5, visualize=False) -> Tuple[List, np.array]:
     """

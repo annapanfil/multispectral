@@ -10,7 +10,6 @@ from sklearn.model_selection import train_test_split
 import yaml
 import click
 
-from detection.litter_detection import merge_rectangles
 from processing.load import load_aligned
 from processing.evaluate_index import get_custom_index
 from processing.consts import CHANNELS
@@ -111,7 +110,6 @@ def create_files(
     split: str,
     new_image_size: tuple,
     channels: list = ["R", "G", "B"],
-    # formula: str = None,
     is_complex: bool = False,
 ) -> None:
     """
@@ -161,7 +159,7 @@ def create_files(
 
         new_image = cv2.resize(new_image, new_image_size)
 
-        cv2.imwrite(row["new_image_path"], new_image)
+        cv2.imwrite(row["new_image_path"], cv2.cvtColor(new_image, cv2.COLOR_RGB2BGR)) # imwrite assumes BGR
 
         with open(row["new_annot_path"], "w") as f:
             for pile in row["piles"]:
@@ -278,7 +276,7 @@ def main(pile_margin, new_image_size, split,new_dataset_name, channels, exclude)
 
     if pile_margin is not None and pile_margin != "None":
         print(f"Merging rectangles with margin {pile_margin}...")
-        df["piles"] = df["annots"].apply(lambda x: merge_rectangles(x, pile_margin))
+        # df["piles"] = df["annots"].apply(lambda x: merge_rectangles(x, pile_margin))
     else :
         df["piles"] = df["annots"]
 
