@@ -1,13 +1,11 @@
 import os
-import time
-import exiftool
 import hydra
 from pathlib import Path
-from omegaconf import ListConfig
 import numpy as np
 
 from processing.load import align_from_saved_matrices, get_altitude, load_image_set, get_irradiance
-from processing.visualise import get_components_view, get_custom_index, get_index_view, save_image, CHANNELS
+from processing.visualise import get_components_view, save_image, CHANNELS
+from processing.evaluate_index import get_custom_index
 
 def threshold_percentiles(image):
     image[image > np.percentile(image, 99.99)] = np.percentile(image, 99.99)
@@ -15,9 +13,11 @@ def threshold_percentiles(image):
 
     return image
 
-
-@hydra.main(config_path="../conf/processing", config_name="black_bed", version_base=None)
+# you can run with multiple configs at once with python3 -m dataset_creation.export_photo_type --multirun processing="mandrac2025_5m,..."
+# the configs should be in the 'conf/processing' folder
+@hydra.main(config_path="../../conf", config_name="config", version_base=None)
 def main(cfg):
+    cfg = cfg.processing
     # setup environment
     image_numbers = [f"{x:04}" for x in cfg.params.image_numbers]
 
@@ -35,7 +35,6 @@ def main(cfg):
         print(f"Aligning {len(img_capt.images)} images...")
 
        
-        
         # align the image
         altitude = get_altitude(cfg, image_nr, i)
         img_type = get_irradiance(img_capt, panel_capt, display=False)

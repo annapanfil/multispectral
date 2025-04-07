@@ -1,13 +1,20 @@
+"""Export aligned channels, RGB and meanRE images for anotation from a config"""
+
 import os
 import hydra
 from pathlib import Path
 
-from load import align_from_saved_matrices, get_altitude, load_image_set, get_irradiance
-from visualise import get_components_view, get_custom_index, save_image, CHANNELS
+from processing.load import align_from_saved_matrices, get_altitude, load_image_set, get_irradiance
+from processing.visualise import get_components_view, save_image, CHANNELS
+from processing.evaluate_index import get_custom_index
 import micasense.imageutils as imageutils
 
-@hydra.main(config_path="../conf/processing", config_name="config_net_10", version_base=None)
+# you can run with multiple configs at once with python3 -m dataset_creation.export_aligned_channels --multirun processing="mandrac2025_5m,..."
+# the configs should be in the 'conf/processing' folder
+@hydra.main(config_path="../../conf", config_name="config", version_base=None)
 def main(cfg):
+    cfg = cfg.processing
+    print("Hello")
     # setup environment
     image_numbers = [f"{x:04}" for x in cfg.params.image_numbers]
 
