@@ -13,7 +13,7 @@ files_path = "/home/anna/Datasets/mandrac_2025_04_04/"
 config_files_path = "../conf/processing"
 channels_out_path = "/home/anna/Datasets/for_annotation/mandrac_2025/"
 topic_name = "/camera/trigger"
-tolerance = 2  # Tolerancja dla point.z
+tolerance = 2.5  # Tolerancja dla point.z
 heights = [5, 10, 15, 20, 25, 30] # Lista wysokości do sprawdzenia
 
 ##################

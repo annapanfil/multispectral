@@ -6,6 +6,17 @@ from pathlib import Path
 import cv2
 from omegaconf import ListConfig
 from skimage.transform import ProjectiveTransform
+
+import time
+def time_decorator(func):
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        print(f"    {func.__name__} took {end - start:.6f} s")
+        return result
+    return wrapper
+
 sys.path.append('/home/anna/code/multispectral/libraries/imageprocessing')
 
 import micasense.capture as capture
@@ -103,7 +114,7 @@ def get_altitude(cfg, image_nr: str, i: int):
             altitude = int(altitude - cfg.params.altitude_change)
     return altitude
 
-def find_images(image_path:Path, image_number:str, panel=False, with_set=None):
+def find_images(image_path:Path, image_number:str, panel=False, with_set=None, no_panchromatic=False):
     """
     Find images for a given capture number.
     Args:
@@ -111,15 +122,18 @@ def find_images(image_path:Path, image_number:str, panel=False, with_set=None):
         image_number (str): The capture number of the images to find or part of image name without the channel.
         panel (bool, optional): True if we search for panel images. Defaults to False.
         with_set (bool, optional): Internal parameter to handle recursive search. Defaults to None.
+        no_panchromatic (bool, optional): If True, exclude panchromatic images (ch6). Defaults to False.
     Returns:
         list: A list of image file paths as strings.
     Raises:
         FileNotFoundError: If no images are found for the given capture number.
     """   
 
-    image_names = list(image_path.glob('IMG_'+ image_number + '_*.tif*'))
+    image_names = sorted(list(image_path.glob('IMG_'+ image_number + '_*.tif*')))
     if image_names == []:
         image_names = sorted(list(image_path.glob(f"*{image_number}*_ch*.tif*")))
+    if no_panchromatic:
+        image_names = [x for x in image_names if "ch6" not in x.name and "_6.tif" not in x.name]
 
     image_names = [x.as_posix() for x in image_names]
    
@@ -135,7 +149,8 @@ def find_images(image_path:Path, image_number:str, panel=False, with_set=None):
 def load_image_set(
         image_path="/home/anna/Obrazy/multispectral/0001SET/000/",
         image_number="0000",
-        panel_image_number=None
+        panel_image_number=None,
+        no_panchromatic=True
     ):
     """
     Load 6 images into one capture object.
@@ -144,16 +159,18 @@ def load_image_set(
         image_path (str): Path to the directory containing the images.
         image_number (str): Number of the capture to be displayed.
         panel_image_number (str, optional): Number of the capture with a calibration QR code.
+        no_panchromatic (bool, optional): If True, exclude panchromatic images (ch6). Defaults to True.
 
     Returns:
         tuple: A tuple containing the image capture object and the panel capture object.
     """
 
-    img_names = find_images(Path(image_path), image_number)
-    img_capt = capture.Capture.from_filelist(img_names)
+
+    img_names = time_decorator(find_images)(Path(image_path), image_number, no_panchromatic=no_panchromatic)
+    img_capt = time_decorator(capture.Capture.from_filelist)(img_names)
     
     # QR code photos
-    panel_names = find_images(Path(image_path), panel_image_number, panel=True) if panel_image_number is not None else None
+    panel_names = find_images(Path(image_path), panel_image_number, panel=True, no_panchromatic=no_panchromatic) if panel_image_number is not None else None
     panel_capt = capture.Capture.from_filelist(panel_names) if panel_names is not None else None
 
     for img in img_capt.images:
@@ -162,7 +179,7 @@ def load_image_set(
     
     return img_capt, panel_capt
 
-def get_irradiance(img_capt, panel_capt, display=False):
+def get_irradiance(img_capt, panel_capt, display=False, vignetting=True):
     """
     Get irradiance and image type and display.
 
@@ -174,13 +191,20 @@ def get_irradiance(img_capt, panel_capt, display=False):
     Returns:
         str: 'reflectance' or 'radiance'
     """
+    def _no_vignette(self):
+        shape = self.raw().shape
+        ones = np.ones(shape, dtype=float).T
+        x = np.zeros_like(ones)
+        y = np.zeros_like(ones)
+        return ones, x, y        
+
     if panel_capt is not None:
         if panel_capt.panel_albedo() is not None:
-            panel_reflectance_by_band = panel_capt.panel_albedo()
+            panel_reflectance_by_band = time_decorator(panel_capt.panel_albedo)()
         else:
             panel_reflectance_by_band = [0.49, 0.49, 0.49, 0.49, 0.49] #RedEdge band_index order
-        panel_irradiance = panel_capt.panel_irradiance(panel_reflectance_by_band)    
-        irradiance_list = panel_capt.panel_irradiance(panel_reflectance_by_band) + [0] # add to account for uncalibrated LWIR band, if applicable
+        panel_irradiance = time_decorator(panel_capt.panel_irradiance)(panel_reflectance_by_band)    
+        irradiance_list = panel_irradiance + [0] # add to account for uncalibrated LWIR band, if applicable
         img_type = "reflectance"
         to_plot = panel_irradiance
     else:
@@ -193,7 +217,9 @@ def get_irradiance(img_capt, panel_capt, display=False):
             irradiance_list = None
     
     for img, irradiance in zip(img_capt.images, irradiance_list):
-            img.reflectance(irradiance)
+            if not vignetting:
+                img.vignette = _no_vignette.__get__(img)
+            time_decorator(img.reflectance)(irradiance)
 
     if display:
         if img_type == "reflectance":
@@ -223,7 +249,7 @@ def read_warp_matrices_for_SIFT(fn="./out/warp_matrices_SIFT.npy"):
     return warp_matrices
 
 
-def get_saved_matrices(warp_matrices_dir: str, altitude: int, allow_closest=False) -> np.array:
+def get_saved_matrices(warp_matrices_dir: str, altitude: int, allow_closest=False, debug=False) -> np.array:
     """
     Get saved matrices from warp_matrices_dir with the given altitude.
 
@@ -238,7 +264,8 @@ def get_saved_matrices(warp_matrices_dir: str, altitude: int, allow_closest=Fals
 
     if Path(fn).is_file():
         warp_matrices = np.load(fn, allow_pickle=True).astype(np.float32)
-        print(f"Warp matrices for altitude {altitude} successfully loaded.")
+        if debug:
+            print(f"Warp matrices for altitude {altitude} successfully loaded.")
     else:
         if allow_closest:
             available_altitudes = [int(x.split(".")[0].split("_")[2]) for x in os.listdir(warp_matrices_dir) if x.endswith(".npy")]
@@ -250,9 +277,8 @@ def get_saved_matrices(warp_matrices_dir: str, altitude: int, allow_closest=Fals
     
     return warp_matrices
 
-def align_rig_relatives(capt, img_type):
+def align_rig_relatives(capt, img_type, reference_band=5):
     """ align using rig relatives """
-    reference_band = 5
     warp_mode = cv2.MOTION_HOMOGRAPHY
     warp_matrices = capt.get_warp_matrices(ref_index=reference_band)
 
@@ -296,9 +322,8 @@ def align_SIFT(capture, img_type, irradiance_list, matrices_fn="./out/warp_matri
     return sharpened_stack, im_aligned
 
 
-def align_iterative(capture, img_type):
+def align_iterative(capture, img_type, reference_band = 5):
     """ align iteratively """
-    match_index = 5 # Index of the band 
     max_alignment_iterations = 20
     warp_mode = cv2.MOTION_HOMOGRAPHY # MOTION_HOMOGRAPHY or MOTION_AFFINE. For Altum images only use HOMOGRAPHY
     pyramid_levels = 1 # for images with RigRelatives, setting this to 0 or 1 may improve alignment
@@ -306,19 +331,19 @@ def align_iterative(capture, img_type):
     print("Aligning images. Depending on settings this can take from a few seconds to many minutes")
     # Can potentially increase max_iterations for better results, but longer runtimes
     warp_matrices, alignment_pairs = imageutils.align_capture(capture,
-                                                            ref_index = match_index,
+                                                            ref_index = reference_band,
                                                             max_iterations = max_alignment_iterations,
                                                             warp_mode = warp_mode,
                                                             pyramid_levels = pyramid_levels)
     
-    cropped_dimensions, edges = imageutils.find_crop_bounds(capture, warp_matrices, warp_mode=warp_mode, reference_band=match_index)
+    cropped_dimensions, edges = imageutils.find_crop_bounds(capture, warp_matrices, warp_mode=warp_mode, reference_band=reference_band)
     print(cropped_dimensions)
-    im_aligned = imageutils.aligned_capture(capture, warp_matrices, warp_mode, cropped_dimensions, match_index, img_type=img_type)
+    im_aligned = imageutils.aligned_capture(capture, warp_matrices, warp_mode, cropped_dimensions, reference_band, img_type=img_type)
 
     return im_aligned, warp_matrices
 
 
-def align_from_saved_matrices(capture, img_type: str, warp_matrices_dir: str, altitude: int, allow_closest=False):
+def align_from_saved_matrices(capture, img_type: str, warp_matrices_dir: str, altitude: int, allow_closest=False, reference_band=5):
 
     """
     Align images using precomputed warp matrices.
@@ -329,15 +354,15 @@ def align_from_saved_matrices(capture, img_type: str, warp_matrices_dir: str, al
         warp_matrices_dir (str): Directory path where the warp matrices are stored.
         altitude (int): The altitude at which the images were captured.
         allow_closest (bool, optional): If True, if the matrices file is not found, get the closest one by the altitude. Defaults to False.
+        reference_band (int, optional): The index of the reference band for alignment. Defaults to 5.
     
     Returns:
         im_aligned: The aligned image capture object.
     """
-    match_index = 5
     warp_mode = cv2.MOTION_HOMOGRAPHY
     
-    warp_matrices = get_saved_matrices(warp_matrices_dir, altitude, allow_closest=allow_closest)
-    cropped_dimensions, edges = imageutils.find_crop_bounds(capture, warp_matrices, warp_mode=warp_mode, reference_band=match_index)
-    im_aligned = imageutils.aligned_capture(capture, warp_matrices, warp_mode, cropped_dimensions, match_index, img_type=img_type)
+    warp_matrices = time_decorator(get_saved_matrices)(warp_matrices_dir, altitude, allow_closest=allow_closest)
+    cropped_dimensions, edges = time_decorator(imageutils.find_crop_bounds)(capture, warp_matrices, warp_mode=warp_mode, reference_band=reference_band)
+    im_aligned = time_decorator(imageutils.aligned_capture)(capture, warp_matrices, warp_mode, cropped_dimensions, reference_band, img_type=img_type)
 
     return im_aligned

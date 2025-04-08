@@ -6,7 +6,7 @@ from ultralytics import YOLO
 
 from detection.shapes import Rectangle
 from detection.utils import get_real_piles_size, greedy_grouping, prepare_image, time_decorator
-from processing.load import align_from_saved_matrices, get_irradiance, load_image_set, load_aligned
+from processing.load import align_from_saved_matrices, get_irradiance, load_image_set
 
 def main():
     """Main function for detection and pile positioning."""
@@ -16,22 +16,23 @@ def main():
 
     img_dir = "/home/anna/Datasets/pool/realistic_trash/0034SET/000" 
     model_path = "../models/pool-form1_pool-3-channels_random_best.pt"
-    warp_matrices_dir = "/home/anna/Datasets/annotated/warp_matrices"
+    warp_matrices_dir = "/home/anna/Datasets/annotated/warp_matrices_no_panchrom"
     img_nr = "0004"
     panel_img_nr = "0000"
     altitude = 4 # TODO: get altitude and position from the ros topic or bag file
-    debug = True
+    debug = False
 
     new_image_size = (800, 608)
     formula = "E # G"
     channels = [formula, "G", "E"] # wrong order, but thats how the model was trained #TODO: fix this
     is_complex = True if any(len(form) for form in channels) > 40 else False
             
+    start = time.time()
     # Read the channels, align and convert to desired format
 
-    img_capt, panel_capt = time_decorator(load_image_set)(img_dir, img_nr, panel_img_nr)
-    img_type = time_decorator(get_irradiance)(img_capt, panel_capt, display=False)
-    img_aligned = time_decorator(align_from_saved_matrices)(img_capt, img_type, warp_matrices_dir, altitude, allow_closest=True)
+    img_capt, panel_capt = time_decorator(load_image_set)(img_dir, img_nr, panel_img_nr, no_panchromatic=True)
+    img_type = time_decorator(get_irradiance)(img_capt, panel_capt, display=False, vignetting=False)
+    img_aligned = time_decorator(align_from_saved_matrices)(img_capt, img_type, warp_matrices_dir, altitude, allow_closest=True, reference_band=0)
     
     image = time_decorator(prepare_image)(img_aligned, channels, is_complex, new_image_size)
    
@@ -59,10 +60,13 @@ def main():
         text = f"{size[0]*100:.0f}x{size[1]*100:.0f}" # cm
         cv2.putText(image, text, (rect.x_l, rect.y_b), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
+    print("----\nWhole main took", time.time() - start, "s")
     plt.imshow(image)
     plt.show()
     
     # TODO: Send somewhere
+
+    print()
 
 if __name__ == "__main__":
     main()
