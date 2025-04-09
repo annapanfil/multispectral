@@ -14,7 +14,6 @@ import micasense.imageutils as imageutils
 @hydra.main(config_path="../../conf", config_name="config", version_base=None)
 def main(cfg):
     cfg = cfg.processing
-    print("Hello")
     # setup environment
     image_numbers = [f"{x:04}" for x in cfg.params.image_numbers]
 
@@ -35,7 +34,7 @@ def main(cfg):
         altitude = get_altitude(cfg, image_nr, i)
         img_type = get_irradiance(img_capt, panel_capt, display=False)
 
-        im_aligned = align_from_saved_matrices(img_capt, img_type, cfg.paths.warp_matrices, altitude, allow_closest=True)
+        im_aligned = align_from_saved_matrices(img_capt, img_type, cfg.paths.warp_matrices, altitude, allow_closest=True, reference_band=0)
 
         # save channels and indexes
         path = Path(cfg.paths.channels_output, f"{image_nr}_{altitude}")
@@ -50,7 +49,10 @@ def main(cfg):
         RGB_image = get_components_view(im_aligned, (2,1,0))
         save_image(RGB_image, f"{path}/{image_nr}_{altitude}_RGB.png", bgr=True)
 
-        meanRE_image = get_custom_index("0.5 * (RE-G)/(RE+G) + 0.5 * (RE-B)/(RE+B)", im_aligned)
+        other_channels_image = get_components_view(im_aligned, (2,3,4))
+        save_image(other_channels_image, f"{path}/{image_nr}_{altitude}_234.png")
+
+        meanRE_image = get_custom_index("0.5 * (E-G)/(E+G) + 0.5 * (E-B)/(E+B)", im_aligned)
         save_image(meanRE_image, f"{path}/{image_nr}_{altitude}_meanRE.png")
         
 

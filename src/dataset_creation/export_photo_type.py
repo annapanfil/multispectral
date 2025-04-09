@@ -39,9 +39,9 @@ def main(cfg):
         altitude = get_altitude(cfg, image_nr, i)
         img_type = get_irradiance(img_capt, panel_capt, display=False)
 
-        # im_aligned = align_from_saved_matrices(img_capt, img_type, cfg.paths.warp_matrices, altitude, allow_closest=True)
-        im_aligned, warp_matrices = align_iterative(img_capt, img_type, reference_band=0)
-        save_warp_matrices(warp_matrices, f"{cfg.paths.warp_matrices}/warp_matrices_{altitude}.npy")
+        im_aligned = align_from_saved_matrices(img_capt, img_type, cfg.paths.warp_matrices, altitude, allow_closest=True, reference_band=0)
+        # im_aligned, warp_matrices = align_iterative(img_capt, img_type, reference_band=0)
+        # save_warp_matrices(warp_matrices, f"{cfg.paths.warp_matrices}/warp_matrices_{altitude}.npy")
 
         # save views
         filename = Path(cfg.paths.output, f"{image_nr}_{altitude}")

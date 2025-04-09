@@ -4,16 +4,28 @@ import yaml
 import rosbag # you have to init ros
 
 # Configurations
-bag_file = "matriceBag_multispectral_2025-04-04-10-47-38.bag"
-experiment_name = "mandrac2025"
+# bag_file = "matriceBag_multispectral_2025-04-04-10-47-38.bag"
+# experiment_name = "beach"
+# panel_image_nr = "0000"
+# images_with_litter = list(range(79,350))
+
+bag_file = "matriceBag_multispectral_2025-04-04-10-54-23.bag"
+experiment_name = "beach_throwing"
 panel_image_nr = "0000"
-images_with_litter = list(range(79,350))
+images_with_litter = list(range(554,560)) + list(range(684,690)) + list(range(701,714)) + list(range(743,782))
+
+# bag_file = "matriceBag_multispectral_2025-04-04-12-38-42.bag"
+# experiment_name = "marina"
+# panel_image_nr = "0010"
+# images_with_litter = list(range(57,398))
+
+
 
 files_path = "/home/anna/Datasets/mandrac_2025_04_04/"
 config_files_path = "../conf/processing"
 channels_out_path = "/home/anna/Datasets/for_annotation/mandrac_2025/"
 topic_name = "/camera/trigger"
-tolerance = 2.5  # Tolerancja dla point.z
+tolerance = 2 # Tolerancja dla point.z
 heights = [5, 10, 15, 20, 25, 30] # Lista wysokości do sprawdzenia
 
 ##################

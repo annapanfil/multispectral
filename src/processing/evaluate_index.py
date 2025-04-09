@@ -147,4 +147,4 @@ def get_custom_index(formula: str, img_aligned: np.array, norm_to_255=False) -> 
         index = (index - np.min(index)) / (np.max(index) - np.min(index))
         return index
     except Exception as e:
-        raise("Error in formula:", e)
+        raise Exception(f"Error in formula: {e}")
