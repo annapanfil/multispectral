@@ -6,6 +6,7 @@ from pathlib import Path
 import cv2
 from omegaconf import ListConfig
 from skimage.transform import ProjectiveTransform
+import concurrent.futures
 
 import time
 def time_decorator(func):
@@ -166,8 +167,8 @@ def load_image_set(
     """
 
 
-    img_names = time_decorator(find_images)(Path(image_path), image_number, no_panchromatic=no_panchromatic)
-    img_capt = time_decorator(capture.Capture.from_filelist)(img_names)
+    img_names = find_images(Path(image_path), image_number, no_panchromatic=no_panchromatic)
+    img_capt = capture.Capture.from_filelist(img_names)
     
     # QR code photos
     panel_names = find_images(Path(image_path), panel_image_number, panel=True, no_panchromatic=no_panchromatic) if panel_image_number is not None else None
@@ -187,7 +188,8 @@ def get_irradiance(img_capt, panel_capt, display=False, vignetting=True):
         img_capt (Capture): The image capture.
         panel_capt (Capture): The panel capture.
         display (bool, optional): Whether to display the images. Defaults to False.
-
+        vignetting (bool, optional): Whether to apply vignetting correction for reflectance. Defaults to True.
+    
     Returns:
         str: 'reflectance' or 'radiance'
     """
@@ -199,11 +201,15 @@ def get_irradiance(img_capt, panel_capt, display=False, vignetting=True):
         return ones, x, y        
 
     if panel_capt is not None:
-        if panel_capt.panel_albedo() is not None:
-            panel_reflectance_by_band = time_decorator(panel_capt.panel_albedo)()
+        if not vignetting:
+            for img in panel_capt.images:
+                img.vignette = _no_vignette.__get__(img)
+
+        if (albedo := panel_capt.panel_albedo()) is not None:
+            panel_reflectance_by_band = albedo
         else:
             panel_reflectance_by_band = [0.49, 0.49, 0.49, 0.49, 0.49] #RedEdge band_index order
-        panel_irradiance = time_decorator(panel_capt.panel_irradiance)(panel_reflectance_by_band)    
+        panel_irradiance = panel_capt.panel_irradiance(panel_reflectance_by_band)    
         irradiance_list = panel_irradiance + [0] # add to account for uncalibrated LWIR band, if applicable
         img_type = "reflectance"
         to_plot = panel_irradiance
@@ -215,11 +221,15 @@ def get_irradiance(img_capt, panel_capt, display=False, vignetting=True):
         else:
             img_type = "radiance"
             irradiance_list = None
-    
-    for img, irradiance in zip(img_capt.images, irradiance_list):
-            if not vignetting:
-                img.vignette = _no_vignette.__get__(img)
-            time_decorator(img.reflectance)(irradiance)
+
+    def compute_radiance(img, irradiance):
+        if not vignetting:
+            img.vignette = _no_vignette.__get__(img)
+        img.reflectance(irradiance)
+        return img
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+       executor.map(compute_radiance, img_capt.images, irradiance_list)
 
     if display:
         if img_type == "reflectance":
@@ -361,8 +371,8 @@ def align_from_saved_matrices(capture, img_type: str, warp_matrices_dir: str, al
     """
     warp_mode = cv2.MOTION_HOMOGRAPHY
     
-    warp_matrices = time_decorator(get_saved_matrices)(warp_matrices_dir, altitude, allow_closest=allow_closest)
-    cropped_dimensions, edges = time_decorator(imageutils.find_crop_bounds)(capture, warp_matrices, warp_mode=warp_mode, reference_band=reference_band)
-    im_aligned = time_decorator(imageutils.aligned_capture)(capture, warp_matrices, warp_mode, cropped_dimensions, reference_band, img_type=img_type)
+    warp_matrices = get_saved_matrices(warp_matrices_dir, altitude, allow_closest=allow_closest)
+    cropped_dimensions, edges = imageutils.find_crop_bounds(capture, warp_matrices, warp_mode=warp_mode, reference_band=reference_band)
+    im_aligned = imageutils.aligned_capture(capture, warp_matrices, warp_mode, cropped_dimensions, reference_band, img_type=img_type)
 
     return im_aligned
