@@ -17,11 +17,14 @@ src/outputs/*
 src/detection/runs/*
 src/datasets/*
 runs/*
+src/multirun/
+models/
 
 # inputs
 input/*
 *.pt
 datasets/*
+conf/
 
 
 # imported code
