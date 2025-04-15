@@ -69,8 +69,8 @@ def load_aligned(image_path: str, image_number: str) -> np.ndarray:
     """
 
     img_names = find_images(Path(image_path), image_number)
-    if len(img_names) != 6:
-        raise ValueError(f"The image should have 6 channels, not {len(img_names)}. ({image_path}, {image_number})")
+    if len(img_names) not in (5, 6):
+        raise ValueError(f"The image should have 5 or 6 channels, not {len(img_names)}. ({image_path}, {image_number})")
     images = [cv2.imread(x, cv2.IMREAD_GRAYSCALE) for x in img_names]
     for i in range(len(images)):
         if images[0].shape != images[i].shape:

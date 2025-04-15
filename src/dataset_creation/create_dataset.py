@@ -2,6 +2,7 @@
 Read the annotated images, merge piles and export them to a new daatset with train, test, val splits
 """
 
+from typing import List
 import cv2
 import os
 import numpy as np
@@ -15,6 +16,34 @@ from processing.evaluate_index import get_custom_index
 from processing.consts import CHANNELS
 from detection.shapes import Rectangle
 
+
+def merge_rectangles(rects: List[Rectangle], margin=0) -> List[Rectangle]:
+    """ merge rectangles that overlap to bigger rectangles """
+    merged = [rects[0]]
+
+    for rect in rects[1:]:
+        for m in merged:
+            if m.intersection(rect, margin):
+                merged.remove(m)
+                merged.append(m | rect)
+                break
+        else:
+            merged.append(rect)
+
+    # check if we cant merge any more
+    changed = True
+    while changed:
+        changed = False
+        for i, rect in enumerate(merged):
+            for j, other in enumerate(merged):
+                if i != j and rect.intersection(other, margin):
+                    merged.remove(rect)
+                    merged.remove(other)
+                    merged.append(rect | other)
+                    changed = True
+                    break
+
+    return merged
 
 def read_all_datasets(
     dataset_path="/home/anna/Datasets/annotated",
@@ -38,6 +67,7 @@ def read_all_datasets(
 
     subdatasets = next(os.walk(dataset_path))[1]
     subdatasets.remove("warp_matrices")
+    subdatasets.remove("warp_matrices_with_panchrom")
     for excluded_set in excluded_sets:
         subdatasets.remove(excluded_set)
 
@@ -53,7 +83,7 @@ def read_all_datasets(
                     subdataset_path,
                     "labels",
                     "train",
-                    image.replace(".png", ".txt").replace(".tiff", "txt"),
+                    image.replace(".png", ".txt").replace(".tiff", ".txt"),
                 )
 
                 with open(os.path.join(subdataset_path, "data_config.yaml"), "r") as file:
@@ -159,6 +189,7 @@ def create_files(
 
         new_image = cv2.resize(new_image, new_image_size)
 
+        new_image = new_image.astype(np.uint8)
         cv2.imwrite(row["new_image_path"], cv2.cvtColor(new_image, cv2.COLOR_RGB2BGR)) # imwrite assumes BGR
 
         with open(row["new_annot_path"], "w") as f:
@@ -234,13 +265,15 @@ def export_splits(
 
 
 @click.command()
-@click.option("--pile_margin", "-m", default=None, help="Litter distant by this number of pixels will be merged to pile", show_default=True)
+@click.option("--pile_margin", "-m", default=None, help="Litter distant by this number of pixels will be merged to pile", show_default=True, type=int)
 @click.option("--new_image_size", "-sz", nargs=2, default=(800, 608), help="New image size", show_default=True)
 @click.option("--split", "-s", default="random", help="Split type (random or hand)", show_default=True)
 @click.option("--new_dataset_name", "-n", help="Name of the new dataset")
 @click.option("--channels", "-c", multiple=True, default=["R", "G", "B"], help="channels or formulas to save", show_default=True)
-@click.option("--exclude", "-e", multiple=True, default =[], help="Datasets to exclude from the new dataset.")
-def main(pile_margin, new_image_size, split,new_dataset_name, channels, exclude):
+@click.option("--exclude", "-e", multiple=True, default = (), help="Datasets to exclude from the new dataset.")
+@click.option("--test", "-t", multiple=True, default =(), help="Datasets to include in testing dataset, taking all by default.")
+
+def main(pile_margin, new_image_size, split, new_dataset_name, channels, exclude, test):
     """
     Create a new dataset with train, test, val splits.
     """
@@ -271,12 +304,12 @@ def main(pile_margin, new_image_size, split,new_dataset_name, channels, exclude)
         dataset_path="/home/anna/Datasets/annotated",
         excluded_litter=["grass_bio_brown", "flake_PE_black", "flake_PE_transparent"],
         excluded_sets=exclude,
-        channel="RGB.png",
+        channel="ch0.tiff",
     )
 
     if pile_margin is not None and pile_margin != "None":
         print(f"Merging rectangles with margin {pile_margin}...")
-        # df["piles"] = df["annots"].apply(lambda x: merge_rectangles(x, pile_margin))
+        df["piles"] = df["annots"].apply(lambda x: merge_rectangles(x, pile_margin))
     else :
         df["piles"] = df["annots"]
 
@@ -286,9 +319,24 @@ def main(pile_margin, new_image_size, split,new_dataset_name, channels, exclude)
     ###############################################
 
     if split == "random":
-        # random split
-        train_df, test_val = train_test_split(df, test_size=0.4, random_state=42)
-        test_df, val_df = train_test_split(test_val, test_size=0.5, random_state=42)
+        if test == ():
+            # random split
+            train_df, test_val = train_test_split(df, test_size=0.4, random_state=42)
+            test_df, val_df = train_test_split(test_val, test_size=0.5, random_state=42)
+        else:
+            # get test (20%) from the test datasets
+            test_candidates = df[df['subdataset'].isin(test)]
+            test_size = int(0.2 * len(df))
+            test_df = test_candidates.sample(n=test_size, random_state=42)
+
+            # Split remaining into train and val (60-20)
+            remaining_df = df.drop(test_df.index)
+            train_df, val_df = train_test_split(
+                remaining_df,
+                test_size=0.25,  # 0.25 of remaining = 20% of total
+                random_state=42,
+                shuffle=True
+            )
 
     elif split == "hand":
         # hand split
