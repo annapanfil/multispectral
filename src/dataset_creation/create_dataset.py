@@ -250,11 +250,12 @@ def export_splits(
     with open(os.path.join(new_dataset_path, f"{dataset_name}.yaml"), "w") as file:
         yaml.dump(
             {
-                "train": f"../../{dataset_name}/images/train",
-                "val": f"../../{dataset_name}/images/val",
-                "test": f"../../{dataset_name}/images/test",
+                "train": f"images/train",
+                "val": f"images/val",
+                "test": f"images/test",
                 "names": ["pile"],
                 "nc": 1,
+                "path": new_dataset_path
             },
             file,
         )
