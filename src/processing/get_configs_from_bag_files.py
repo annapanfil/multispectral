@@ -4,26 +4,35 @@ import yaml
 import rosbag # you have to init ros
 
 # Configurations
-# bag_file = "matriceBag_multispectral_2025-04-04-10-47-38.bag"
-# experiment_name = "beach"
+# bag_file = "matriceBag_multispectral_2016-02-11-18-02-40.bag"
+# experiment_name =  "mandrac2025_04_16_weights"
 # panel_image_nr = "0000"
-# images_with_litter = list(range(79,350))
+# images_with_litter = list(range(21, 230))
 
-bag_file = "matriceBag_multispectral_2025-04-04-10-54-23.bag"
-experiment_name = "beach_throwing"
-panel_image_nr = "0000"
-images_with_litter = list(range(554,560)) + list(range(684,690)) + list(range(701,714)) + list(range(743,782))
+# bag_file = "matriceBag_multispectral_2016-02-11-18-47-02.bag"
+# experiment_name = "mandrac2025_04_16_pile"
+# panel_image_nr = "0436"
+# images_with_litter = list(range(260,262)) + list(range(266,434))
 
-# bag_file = "matriceBag_multispectral_2025-04-04-12-38-42.bag"
-# experiment_name = "marina"
-# panel_image_nr = "0010"
-# images_with_litter = list(range(57,398))
+# bag_file = "matriceBag_multispectral_2016-02-11-18-59-05.bag"
+# experiment_name = "mandrac2025_04_16_transparent"
+# panel_image_nr = "0436"
+# images_with_litter = list(range(449, 600))
+
+# bag_file = "matriceBag_multispectral_2016-02-11-19-09-56.bag"
+# experiment_name = "mandrac2025_04_16_green"
+# panel_image_nr = "0436"
+# images_with_litter = list(range(602,665)) + list(range(667,826))
+
+bag_file = "matriceBag_multispectral_2016-02-11-19-25-55.bag"
+experiment_name = "mandrac2025_04_16_transparent_and_green"
+panel_image_nr = "0436"
+images_with_litter = list(range(839,900)) + list(range(907, 1095))
 
 
-
-files_path = "/home/anna/Datasets/mandrac_2025_04_04/"
+files_path = "/home/anna/Datasets/mandrac_2025_04_16/"
 config_files_path = "../conf/processing"
-channels_out_path = "/home/anna/Datasets/for_annotation/mandrac_2025/"
+channels_out_path = "/home/anna/Datasets/for_annotation/mandrac_2025_04_16/"
 topic_name = "/camera/trigger"
 tolerance = 2 # Tolerancja dla point.z
 heights = [5, 10, 15, 20, 25, 30] # Lista wysokości do sprawdzenia
