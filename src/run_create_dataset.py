@@ -81,6 +81,7 @@ if __name__ == "__main__":
         #     "-n", f"{ds if ds else ''}{'-' if ds else ''}{name.replace(' ', '-')}_whole_random", 
         #     "-c", formula])
     
+    
         # train on whole, test on pool
         # run_job(["python3", "-m", "dataset_creation.create_dataset", 
         #     "-e", "mandrac",
