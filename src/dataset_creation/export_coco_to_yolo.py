@@ -9,9 +9,10 @@ import subprocess
 ds_path = "/home/anna/Datasets/annotated/"
 annots_prefix = "mandrac3" # for the COCO annot file
 desired_annots_prefix = "mandrac" # added to names of images and annotations in the resulting dataset
-experiment_name = "weights"
-experiment_time = "11"
+experiment_name = "transparent_and_green"
+experiment_time = "12"
 ds_for_annot_path = f"/home/anna/Datasets/for_annotation/mandrac_2025_04_16/mandrac2025_04_16_{experiment_name}"
+show = False
 
 # ----------------------------------------------------------------------------------
 
@@ -29,26 +30,25 @@ image_id_to_fn = {img["id"]: img["file_name"] for img in coco_data["images"]}
 
 print(len(image_anns))
 
-for img, anns in image_anns.items():
-    # load image
-    fn = image_id_to_fn[img]
-    alt = fn.split("_")[1] 
-    nr = fn.split("_")[0]
+if show:
+    for img, anns in image_anns.items():
+        # load image
+        fn = image_id_to_fn[img]
+        alt = fn.split("_")[1] 
+        nr = fn.split("_")[0]
 
-    image = cv2.imread(f"{ds_for_annot_path}/{alt}/{nr}_{alt}/{fn.replace('tiff', 'tif')}")
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = cv2.imread(f"{ds_for_annot_path}/{alt}/{nr}_{alt}/{fn.replace('tiff', 'tif')}")
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-    # draw annotations
-    for ann in anns:
-        polygon = np.array(ann["segmentation"]).reshape((-1, 2)).astype(int)
-        cv2.polylines(image, [polygon], isClosed=True, color=(255, 0, 0), thickness=2)
-        bbox = ann["bbox"]  # [x,y,w,h]
-        cv2.rectangle(image, (int(bbox[0]), int(bbox[1])), (int(bbox[0]+bbox[2]), int(bbox[1]+bbox[3])), (0, 255, 0), 2)
+        # draw annotations
+        for ann in anns:
+            polygon = np.array(ann["segmentation"]).reshape((-1, 2)).astype(int)
+            cv2.polylines(image, [polygon], isClosed=True, color=(255, 0, 0), thickness=2)
+            bbox = ann["bbox"]  # [x,y,w,h]
+            cv2.rectangle(image, (int(bbox[0]), int(bbox[1])), (int(bbox[0]+bbox[2]), int(bbox[1]+bbox[3])), (0, 255, 0), 2)
 
-    plt.imshow(image)
-    plt.show()
-
-    # plot coco annotations
+        plt.imshow(image)
+        plt.show()
 
 
 # ---- CONVERT TO YOLO AND COPY TO A NEW DIRECTORY ----
@@ -87,8 +87,9 @@ for img_id, anns in image_anns.items():
     # Prepare YOLO output file
     yolo_txt_base_path = f"{ds_path}/{annots_prefix}/{experiment_name}/labels"
     prefix = f"{desired_annots_prefix}-{experiment_name.replace('_', '-')}_{experiment_time}_"
-    yolo_txt_paths = [f"{yolo_txt_base_path}/{prefix}{'_'.join(fn.split('_')[:-1])}_ch{i}.txt" for i in range(0, 5)]
+    yolo_txt_paths = [f"{yolo_txt_base_path}/{prefix}{'_'.join(fn.split('_')[:-1])}_ch{i}.txt" for i in range(0, 5)]  
 
+    ann_string = ""
     for ann in anns:
         # Convert COCO bbox [x,y,w,h] to YOLO format [x_center, y_center, w, h] (normalized)
         x, y, w, h = ann["bbox"]
@@ -96,14 +97,15 @@ for img_id, anns in image_anns.items():
         y_center = (y + h/2) / img_height
         w_norm = w / img_width
         h_norm = h / img_height
+        class_id = ann.get("category_id", 0) - 1  # YOLO uses 0-based indices
             
-    for path in yolo_txt_paths:
+        ann_string += f"{class_id} {x_center:.6f} {y_center:.6f} {w_norm:.6f} {h_norm:.6f}\n"
+        
+    for path in yolo_txt_paths:          
         if not os.path.exists(os.path.dirname(path)):
-            os.makedirs(os.path.dirname(path))            
+            os.makedirs(os.path.dirname(path))
         with open(path, 'w') as yolo_file:
-            # Write to YOLO file (class_id defaults to 0 if not specified)
-            class_id = ann.get("category_id", 0) - 1  # YOLO uses 0-based indices
-            yolo_file.write(f"{class_id} {x_center:.6f} {y_center:.6f} {w_norm:.6f} {h_norm:.6f}\n")
+            yolo_file.write(ann_string)
 
 print("YOLO conversion complete!")
 print(f"Saved the annotations to {ds_path}/{annots_prefix}/{experiment_name}/")

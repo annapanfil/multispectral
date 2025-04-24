@@ -325,19 +325,12 @@ def main(pile_margin, new_image_size, split, new_dataset_name, channels, exclude
             train_df, test_val = train_test_split(df, test_size=0.4, random_state=42)
             test_df, val_df = train_test_split(test_val, test_size=0.5, random_state=42)
         else:
-            # get test (20%) from the test datasets
-            test_candidates = df[df['subdataset'].isin(test)]
-            test_size = int(0.2 * len(df))
-            test_df = test_candidates.sample(n=test_size, random_state=42)
+            # random split on test datasets
+            train_df, test_val = train_test_split(df[df["subdataset"].isin(test)], test_size=0.4, random_state=42)
+            test_df, val_df = train_test_split(test_val, test_size=0.5, random_state=42)
 
-            # Split remaining into train and val (60-20)
-            remaining_df = df.drop(test_df.index)
-            train_df, val_df = train_test_split(
-                remaining_df,
-                test_size=0.25,  # 0.25 of remaining = 20% of total
-                random_state=42,
-                shuffle=True
-            )
+            # add the rest of the datasets to train
+            train_df = pd.concat([train_df, df[~df["subdataset"].isin(test)]])
 
     elif split == "hand":
         # hand split

@@ -24,23 +24,23 @@ if __name__ == "__main__":
     # selected_columns = df[field_names]
 
     POOL_DS = ["ghost-net", "bags", "black-bed", "green-net", "pile"]
-    SEA_DS = ["mandrac", "mandrac2"]
+    SEA_DS = ["mandrac", "mandrac2", "mandrac3"]
 
     baseline_rows = pd.DataFrame([
-            # ["rndwi", None, "N # G", "false"],
-            # ["meanre", None, "(4#1) + (4#0)", "false"],
-            # ["RGB", None, None, "false"]
+            ["rndwi", None, "N # G", "false"],
+            ["meanre", None, "(4#1) + (4#0)", "false"],
+            ["RGB", None, None, "false"]
         ], columns=field_names)
 
     selected_columns = pd.DataFrame([
-            # ["form1", "pool", "4 # 1", "false"],
-            # ["form2", "pool", "(4 - ((1 * 0) # (4 * 0)))", "false"],
-            # ["form3", "pool", "(((4 + (2 * 3)) + 4) # 1)", "false"],
-            # ["form4", "all", "(4 # (4 + 1))", "false"],
-            # ["form5", "all", "(((0 # 4) - 4) - (4 # 1))", "false"],
+            ["form1", "pool", "4 # 1", "false"],
+            ["form2", "pool", "(4 - ((1 * 0) # (4 * 0)))", "false"],
+            ["form3", "pool", "(((4 + (2 * 3)) + 4) # 1)", "false"],
+            ["form4", "all", "(4 # (4 + 1))", "false"],
+            ["form5", "all", "(((0 # 4) - 4) - (4 # 1))", "false"],
             ["form6", "sea", "((((0 + 1) + 0) + 2) # (1 / 3))", "false"],
             ["form7", "sea", "((0 * 3) # 0)", "false"],
-            ["form8", "sea", "(3 - (4 - 3))", "false"],
+            ["form8", "sea", "(3 - (4 - 3))", "false"]
         ], columns=field_names)
 
     selected_columns = pd.concat([selected_columns, baseline_rows], ignore_index=True)
@@ -62,7 +62,7 @@ if __name__ == "__main__":
             #          "-c", "R", "-c", "G", "-c", "B"])
             # run_job(["python3", "-m", "dataset_creation.create_dataset", "-e", "mandrac", "-n", "RGB_pool_random", 
             #          "-c", "R", "-c", "G", "-c", "B"])
-            run_job(["python3", "-m", "dataset_creation.create_dataset", "-n", "RGB_tr-whole-test-sea_random", 
+            run_job(["python3", "-m", "dataset_creation.create_dataset", "-n", "RGB_tr-whole-test-val-sea_random", 
                      "-c", "R", "-c", "G", "-c", "B", "-m", "13"]
                       + sum([["-t", d] for d in SEA_DS], []))
             run_job(["python3", "-m", "dataset_creation.create_dataset", "-n", "RGB_sea_random",
@@ -88,19 +88,36 @@ if __name__ == "__main__":
         #     "-n", f"{ds if ds else ''}{'-' if ds else ''}{name.replace(' ', '-')}_pool-3-channels_random", 
         #     "-c", "E", "-c", "G", "-c", formula])
 
-        # train on whole, test on sea
+        # train on whole, val and test on sea
         run_job(["python3", "-m", "dataset_creation.create_dataset",
-            "-n", f"{ds if ds else ''}{'-' if ds else ''}{name.replace(' ', '-')}_tr-whole-test-sea_random",
-            "-m", "13", "-c", "E", "-c", "G", "-c", formula] +
+            "-n", f"{ds if ds else ''}{'-' if ds else ''}{name.replace(' ', '-')}_tr-whole-test-val-sea_random",
+            "-m", "13", "-c", "N", "-c", "G", "-c", formula] +
             sum([["-t", d] for d in SEA_DS], [])
         )
 
         # train and test on sea only
         run_job(["python3", "-m", "dataset_creation.create_dataset",
             "-n", f"{ds if ds else ''}{'-' if ds else ''}{name.replace(' ', '-')}_sea_random",
-            "-m", "13", "-c", "E", "-c", "G", "-c", formula] +
+            "-m", "13", "-c", "N", "-c", "G", "-c", formula] +
             sum([["-e", d] for d in POOL_DS], [])
             )
+
+    # train on whole, val and test on sea, only channel 3 (NIR) on all the inputs
+    run_job(["python3", "-m", "dataset_creation.create_dataset",
+                "-n", f"{ds if ds else ''}{'-' if ds else ''}NIR_tr-whole-test-val-sea_random",
+                "-m", "13", "-c", "N", "-c", "N", "-c", "N"] +
+                sum([["-t", d] for d in SEA_DS], [])
+                )
+    
+
+    # train and test on sea only, only channel 3 (NIR) on all the inputs
+    run_job(["python3", "-m", "dataset_creation.create_dataset",
+            "-n", f"{ds if ds else ''}{'-' if ds else ''}NIR_sea_random",
+            "-m", "13", "-c", "N", "-c", "N", "-c", "N"] +
+            sum([["-e", d] for d in POOL_DS], [])
+            )
+    
+    # train on whole, val and test on sea, only channel 3 (NIR) on all the inputs
 
     # MERGE INDEX AND RGB DATASETS
     # train on whole idx + RGB, test on whole
