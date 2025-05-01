@@ -50,6 +50,7 @@ def read_all_datasets(
     excluded_litter=["grass_bio_brown", "flake_PE_black", "flake_PE_transparent"],
     excluded_sets=[],
     channel="RGB.png",
+    has_aug = False,
 ) -> pd.DataFrame:
     """
     Read every annotation in every image from subdirectories of dataset_path.
@@ -76,15 +77,21 @@ def read_all_datasets(
 
     for subdataset in subdatasets:
         subdataset_path = os.path.join(dataset_path, subdataset)
-        for image in os.listdir(os.path.join(subdataset_path, "images", "train")):
+
+        images = os.listdir(os.path.join(subdataset_path, "images", "train"))
+        if has_aug:
+            images += os.listdir(os.path.join(subdataset_path, "images", "train_aug"))
+
+        for image in images:
             if image.endswith(channel):  # only one image per group
-                image_path = os.path.join(subdataset_path, "images", "train", image)
+                subdataset = "train_aug" if has_aug and "_aug" in image else "train"
+                image_path = os.path.join(subdataset_path, "images", subdataset, image)
                 annot_path = os.path.join(
                     subdataset_path,
                     "labels",
-                    "train",
+                    subdataset,
                     image.replace(".png", ".txt").replace(".tiff", ".txt"),
-                )
+                )    
 
                 with open(os.path.join(subdataset_path, "data_config.yaml"), "r") as file:
                     config = yaml.safe_load(file)
@@ -109,6 +116,9 @@ def read_all_datasets(
                                     class_name,
                                 )
                             )
+                if len(annots) == 0:
+                    print("No annotations in", image_path)
+                    continue
 
                 data.append([subdataset, image_path, annot_path, annots])
 
@@ -174,8 +184,7 @@ def create_files(
 
     for i, row in df.iterrows():
         dir_path = "/".join(row["image_path"].split("/")[:-1])
-        image_nr = "_".join(row["image_path"].split("/")[-1].split("_")[:4])
-
+        image_nr = "_".join(row["image_path"].split("/")[-1].split("_")[:-1])
         im_aligned = load_aligned(dir_path, image_nr)
         height, width = im_aligned.shape[:2]
 
@@ -273,8 +282,9 @@ def export_splits(
 @click.option("--channels", "-c", multiple=True, default=["R", "G", "B"], help="channels or formulas to save", show_default=True)
 @click.option("--exclude", "-e", multiple=True, default = (), help="Datasets to exclude from the new dataset.")
 @click.option("--test", "-t", multiple=True, default =(), help="Datasets to include in testing dataset, taking all by default.")
+@click.option("--aug", "-a", default=False, is_flag=True, help="Use augmented images from train_aug", show_default=True)
 
-def main(pile_margin, new_image_size, split, new_dataset_name, channels, exclude, test):
+def main(pile_margin, new_image_size, split, new_dataset_name, channels, exclude, test, aug):
     """
     Create a new dataset with train, test, val splits.
     """
@@ -306,6 +316,7 @@ def main(pile_margin, new_image_size, split, new_dataset_name, channels, exclude
         excluded_litter=["grass_bio_brown", "flake_PE_black", "flake_PE_transparent"],
         excluded_sets=exclude,
         channel="ch0.tiff",
+        has_aug=aug
     )
 
     if pile_margin is not None and pile_margin != "None":
