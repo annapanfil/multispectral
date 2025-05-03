@@ -14,7 +14,7 @@ def main():
     CAM_HFOV = np.deg2rad(49.6)  # rad
     CAM_VFOV = np.deg2rad(38.3)  # rad
 
-    img_dir = "/home/anna/Datasets/pool/realistic_trash/0034SET/000" 
+    img_dir = "/home/anna/Datasets/raw_images/pool/realistic_trash/0034SET/000" 
     model_path = "../models/pool-form1_pool-3-channels_random_best.pt"
     warp_matrices_dir = "/home/anna/Datasets/annotated/warp_matrices"
     img_nr = "0004"
@@ -29,7 +29,6 @@ def main():
             
     start = time.time()
     # Read the channels, align and convert to desired format
-
 
     img_capt, panel_capt = time_decorator(load_image_set)(img_dir, img_nr, panel_img_nr, no_panchromatic=True)
     
