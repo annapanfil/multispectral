@@ -258,8 +258,52 @@ def read_warp_matrices_for_SIFT(fn="./out/warp_matrices_SIFT.npy"):
 
     return warp_matrices
 
+def load_all_warp_matrices(warp_matrices_dir: str) -> dict:
+    """
+    Load all warp matrices from the specified directory.
+
+    Args:
+        warp_matrices_dir (str): The directory containing the warp matrices.
+
+    Returns:
+        dict: A dictionary mapping altitudes to their corresponding warp matrices.
+    """
+    warp_matrices = {}
+    for fn in os.listdir(warp_matrices_dir):
+        if fn.endswith(".npy"):
+            altitude = int(fn.split(".")[0].split("_")[2])
+            warp_matrices[altitude] = np.load(os.path.join(warp_matrices_dir, fn), allow_pickle=True).astype(np.float32)
+    
+    return warp_matrices
+
+def get_warp_mat_for_altitude(warp_matrices: dict, altitude: int, allow_closest=False, verb=False) -> np.array:
+    """
+    Get saved matrices from warp_matrices_dir with the given altitude.
+
+    Args:
+        warp_matrices (dict): Dictionary containing warp matrices for different altitudes.
+        altitude (int): The altitude for which the matrices should be loaded.   
+        allow_closest (bool): If the matrices file is not found, get the closest one by the altitude.
+    Returns:
+        np.array: The warp matrices.
+    """
+
+    try:
+        warp_mat = warp_matrices[altitude]
+    except KeyError:
+        if allow_closest:
+            available_altitudes = list(warp_matrices.keys())
+            closest_altitude = min(available_altitudes, key=lambda x: abs(x - altitude))
+            if verb: print(f"No existing warp matrices found for altitude {altitude}. Using closest altitude {closest_altitude}.")
+            warp_mat = warp_matrices[closest_altitude]
+        else:
+            raise FileNotFoundError(f"No existing warp matrices found for altitude {altitude}.")
+        
+    return warp_mat
+
 
 def get_saved_matrices(warp_matrices_dir: str, altitude: int, allow_closest=False, debug=False) -> np.array:
+    # TODO: delete - kept for backward compatibility
     """
     Get saved matrices from warp_matrices_dir with the given altitude.
 
@@ -354,7 +398,7 @@ def align_iterative(capture, img_type, reference_band = 5):
 
 
 def align_from_saved_matrices(capture, img_type: str, warp_matrices_dir: str, altitude: int, allow_closest=False, reference_band=5):
-
+    #TODO: delete string possibility - kept for backward compatibility
     """
     Align images using precomputed warp matrices.
     
@@ -369,9 +413,12 @@ def align_from_saved_matrices(capture, img_type: str, warp_matrices_dir: str, al
     Returns:
         im_aligned: The aligned image capture object.
     """
+    if isinstance(warp_matrices_dir, str):
+        warp_matrices = get_saved_matrices(warp_matrices_dir, altitude, allow_closest=allow_closest)
+    else: # dict
+        warp_matrices = get_warp_mat_for_altitude(warp_matrices_dir, altitude, allow_closest=allow_closest)
+
     warp_mode = cv2.MOTION_HOMOGRAPHY
-    
-    warp_matrices = get_saved_matrices(warp_matrices_dir, altitude, allow_closest=allow_closest)
     cropped_dimensions, edges = imageutils.find_crop_bounds(capture, warp_matrices, warp_mode=warp_mode, reference_band=reference_band)
     im_aligned = imageutils.aligned_capture(capture, warp_matrices, warp_mode, cropped_dimensions, reference_band, img_type=img_type)
 
