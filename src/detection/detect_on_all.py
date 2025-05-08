@@ -23,8 +23,8 @@ def main_processing(img_dir, bag_path, out_path, model_path, panel_img_nr, start
     formula = "(N - (E - N))"
     channels = ["N", "G", formula]
     is_complex = len(formula) > 40
-    batch_size = 4  # Experiment with this based on GPU memory
-    num_workers = 6  # Adjust based on CPU cores
+    batch_size = 4 
+    num_workers = 6 
 
     # Pre-load all warp matrices into memory
     warp_matrices = load_all_warp_matrices(warp_matrices_dir)
@@ -32,11 +32,10 @@ def main_processing(img_dir, bag_path, out_path, model_path, panel_img_nr, start
     # Initialize model with optimizations
     model = YOLO(model_path)
     model.fuse() # Fuse Conv+BN layers
-    model.half()  # Requires CUDA-enabled GPU
+    model.half()
     model.conf = 0.5
 
     # Parallel processing pipeline
-    input_queue = queue.Queue(maxsize=20)
     output_queue = queue.PriorityQueue()
 
     # Video writer thread
@@ -45,7 +44,7 @@ def main_processing(img_dir, bag_path, out_path, model_path, panel_img_nr, start
 
     # Process messages in parallel
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
-        # First load all messages (fast)
+        # Load all messages
         messages = []
         with rosbag.Bag(bag_path, 'r') as bag:
             for topic, msg, t in bag.read_messages(topics=[topic_name]):
@@ -65,7 +64,7 @@ def main_processing(img_dir, bag_path, out_path, model_path, panel_img_nr, start
             future_map[future] = i
             batch.append(future)
 
-            print_progress(i, total_images, start_time)  # <-- Add this
+            print_progress(i, total_images, start_time)
             
             if len(batch) >= batch_size:
                 process_batch(batch, model, output_queue, future_map)

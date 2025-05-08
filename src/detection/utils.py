@@ -4,7 +4,7 @@ import cv2
 
 import numpy as np
 from detection.shapes import Rectangle
-from processing.consts import CHANNELS
+from processing.consts import CHANNELS, CAM_HFOV, CAM_VFOV
 from dataset_creation.create_dataset import apply_formula
 
 def prepare_image(img_aligned: np.array, channels: List, is_complex: bool, new_size: Tuple[int, int]) -> np.array:
@@ -98,6 +98,10 @@ def get_real_piles_size(
 
         sizes.append((width_m, height_m))
     return sizes
+
+def get_piles_positions(bbs, altitude):
+    # TODO
+    return [(0,0) for bb in bbs] 
 
 def time_decorator(func):
     def wrapper(*args, **kwargs):

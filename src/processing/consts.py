@@ -1,4 +1,5 @@
 import operator
+import numpy as np
 
 def normalised_difference(a, b):
     res = (a-b) / (a+b + EPSILON)
@@ -16,4 +17,6 @@ OPERATIONS = {"+": operator.add,
             "*": operator.mul, 
             "/": lambda a, b: a / b if b.all() != 0 else a / (b + EPSILON),
             "#": normalised_difference}
-        
+
+CAM_HFOV = np.deg2rad(49.6)  # rad
+CAM_VFOV = np.deg2rad(38.3)  # rad

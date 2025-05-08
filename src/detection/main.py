@@ -5,39 +5,34 @@ import numpy as np
 from ultralytics import YOLO
 
 from detection.shapes import Rectangle
-from detection.utils import get_real_piles_size, greedy_grouping, prepare_image, time_decorator
+from detection.utils import get_real_piles_size, greedy_grouping, prepare_image, time_decorator, get_piles_positions
 from processing.load import align_from_saved_matrices, get_irradiance, load_image_set
+from processing.consts import *
 
 def main():
     """Main function for detection and pile positioning."""
-    POOL_HEIGHT = 0.5  # m
-    CAM_HFOV = np.deg2rad(49.6)  # rad
-    CAM_VFOV = np.deg2rad(38.3)  # rad
 
-    img_dir = "/home/anna/Datasets/raw_images/pool/realistic_trash/0034SET/000" 
-    model_path = "../models/pool-form1_pool-3-channels_random_best.pt"
+    img_dir = "/home/anna/Datasets/raw_images/mandrac_2025_04_16/images/0004SET/005" 
+    model_path = "../models/sea-form8_sea_aug-random_best.pt"
     warp_matrices_dir = "/home/anna/Datasets/annotated/warp_matrices"
-    img_nr = "0004"
-    panel_img_nr = "0000"
-    altitude = 4 # TODO: get altitude and position from the ros topic or bag file
+    img_nr = "1049"
+    panel_img_nr = "0436"
+    altitude = 10
     debug = False
+    POOL_HEIGHT = 0.5  # m
 
     new_image_size = (800, 608)
-    formula = "E # G"
-    channels = [formula, "G", "E"] # wrong order, but thats how the model was trained #TODO: fix this
+    formula = "(N - (E - N))"
+    channels = ["N", "G", formula]
     is_complex = True if any(len(form) for form in channels) > 40 else False
             
+    ##################################################
     start = time.time()
+
     # Read the channels, align and convert to desired format
-
     img_capt, panel_capt = time_decorator(load_image_set)(img_dir, img_nr, panel_img_nr, no_panchromatic=True)
-    
-    # import cProfile
-    # cProfile.runctx('get_irradiance(img_capt, panel_capt, display=False, vignetting=False)', globals(), locals(), sort='time', filename='profile_output.prof')
-
     img_type = time_decorator(get_irradiance)(img_capt, panel_capt, display=False, vignetting=False)
     img_aligned = time_decorator(align_from_saved_matrices)(img_capt, img_type, warp_matrices_dir, altitude, allow_closest=True, reference_band=0)
-    
     image = time_decorator(prepare_image)(img_aligned, channels, is_complex, new_image_size)
    
     # Predict
@@ -52,6 +47,7 @@ def main():
 
     # TODO: Get position in the world
     sizes = time_decorator(get_real_piles_size)(image.shape[:2], altitude - POOL_HEIGHT, CAM_HFOV, CAM_VFOV, merged_bbs)
+    positions = get_piles_positions(merged_bbs, altitude - POOL_HEIGHT)
 
     print("----\nWhole main took", time.time() - start, "s")
 
@@ -60,15 +56,16 @@ def main():
         plt.imshow(merged_img)
         plt.show()
 
-    for rect, size in zip(merged_bbs, sizes):
+    for rect, size, pos in zip(merged_bbs, sizes, positions):
         rect.draw(image, color=(0, 255, 0), thickness=2)
         text = f"{size[0]*100:.0f}x{size[1]*100:.0f}" # cm
         cv2.putText(image, text, (rect.x_l, rect.y_b), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+        cv2.putText(image, str(pos), [int(x) for x in rect.center], cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
     plt.imshow(image)
     plt.show()
-    
-    # TODO: Send somewhere
+
+    #TODO: send positions to rostopic
 
 if __name__ == "__main__":
     main()
