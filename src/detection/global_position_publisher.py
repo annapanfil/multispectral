@@ -99,11 +99,7 @@ class CameraModel:
         plane_p0_cam = np.matmul(R_, plane_p0)
         # Define offset plane in NED coordinates (origin on surface)
         # intersect object camera coordinates and ROV plane
-        print(f"{obj_norm_cam=}")
-        print(f"{plane_p0_cam=}")
-        print(f"{plane_normal_cam=}")
         obj_cam = self._intersect_vector_plane(obj_norm_cam, plane_p0_cam, plane_normal_cam) #object in camera coordinates
-        print(f"{obj_cam=}")
 
         #Publish to topics
         self._publish_camera_coord(obj_cam) # Publish surface camera coordinates
@@ -301,18 +297,12 @@ class ObjectGlobalPositionPublisher:
         rate = rospy.Rate(30)
         while not rospy.is_shutdown():
             camera_pos_enu = self._get_camera_position_world_enu()
-            print(camera_pos_enu)
             obj_px_position = self._get_obj_px_position()
-            #print(obj_px_position)
             drone_orientation_enu = (self.msgs["attitude"].vector.x, self.msgs["attitude"].vector.y, self.msgs["attitude"].vector.z)
 
-            #print(f"Drone orientation ENU: {drone_orientation_enu}")
             camera_orientation_ned = self._get_camera_orientation_ned(drone_orientation_enu)
-            #print(f"Camera orientation NED: {camera_orientation_ned}")
             obj_cam = self.camera_model.get_obj_camera(obj_px_position, camera_orientation_ned, height = camera_pos_enu[2][0], height_offset=self.height_offset)#
-            #print(f"{obj_cam=}")
             R_camera_to_enu = self.camera_model._camera_to_enu(drone_orientation_enu)
-            #print(f"{R_camera_to_enu=}")
             obj_enu = np.matmul(R_camera_to_enu, obj_cam) # object in ENU 
             #print(f"{obj_enu=}")
             #World coordinates (ENU)
@@ -322,6 +312,7 @@ class ObjectGlobalPositionPublisher:
             #Publish coordinates
             self._pub_world_enu_pos(self.world_enu_pub, obj_enu)
             self._pub_gps_position(self.global_pos_pub, obj_geo)
+            print(f"ENU position: {', '.join([str(x) for x in obj_enu])}\n GPS postion: {', '.join([str(x) for x in obj_geo])}")
             rate.sleep()
 
 if __name__=="__main__":
