@@ -20,3 +20,9 @@ OPERATIONS = {"+": operator.add,
 
 CAM_HFOV = np.deg2rad(49.6)  # rad
 CAM_VFOV = np.deg2rad(38.3)  # rad
+
+CAMERA_MATRIX = [[     1575.3,           0,      714.41],
+                 [          0,      1575.3,      471.71],
+                 [          0,           0,           1]] # for ch 0
+
+DISTORTION_COEFFS = [   -0.08933,     0.11349, -0.00045258,  0.00056019,   0.0085821] # k1, k2, p1, p2, k3

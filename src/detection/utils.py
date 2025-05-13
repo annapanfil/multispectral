@@ -99,10 +99,6 @@ def get_real_piles_size(
         sizes.append((width_m, height_m))
     return sizes
 
-def get_piles_positions(bbs, altitude):
-    # TODO
-    return [(0,0) for bb in bbs] 
-
 def time_decorator(func):
     def wrapper(*args, **kwargs):
         start = time.time()

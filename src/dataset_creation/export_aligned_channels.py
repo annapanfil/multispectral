@@ -17,9 +17,9 @@ def main(cfg):
     # setup environment
     image_numbers = [f"{x:04}" for x in cfg.params.image_numbers]
 
-    if not os.path.exists(cfg.paths.channels_output):
-        print(f"creating directory {cfg.paths.channels_output}")
-        os.makedirs(cfg.paths.channels_output)
+    # if not os.path.exists(cfg.paths.channels_output):
+    #     print(f"creating directory {cfg.paths.channels_output}")
+    #     os.makedirs(cfg.paths.channels_output)
 
     # process images
     for i, image_nr in enumerate(image_numbers):

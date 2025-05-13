@@ -12,7 +12,6 @@ import threading
 from detection.shapes import Rectangle
 from detection.utils import greedy_grouping, prepare_image
 from processing.load import align_from_saved_matrices, get_irradiance, load_all_warp_matrices, load_image_set
-from tqdm import tqdm
 
 def main_processing(img_dir, bag_path, out_path, model_path, panel_img_nr, start_from, end_on):
     # Configuration (keep your original parameters)

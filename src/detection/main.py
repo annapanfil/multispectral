@@ -31,9 +31,18 @@ def main():
 
     # Read the channels, align and convert to desired format
     img_capt, panel_capt = time_decorator(load_image_set)(img_dir, img_nr, panel_img_nr, no_panchromatic=True)
+    print(img_capt.images[0].raw().shape)
+
+    for i, img in enumerate(img_capt.images):
+        print(f"Camera matrix and distortion coeffs {i}:")
+        print(img.cv2_camera_matrix())
+        print(img.cv2_distortion_coeff())
     img_type = time_decorator(get_irradiance)(img_capt, panel_capt, display=False, vignetting=False)
     img_aligned = time_decorator(align_from_saved_matrices)(img_capt, img_type, warp_matrices_dir, altitude, allow_closest=True, reference_band=0)
+    print(img_aligned.shape)
+    print(type(img_aligned))
     image = time_decorator(prepare_image)(img_aligned, channels, is_complex, new_image_size)
+    print(image.shape)
    
     # Predict
     model = YOLO(model_path)
