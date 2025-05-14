@@ -328,7 +328,7 @@ if __name__=="__main__":
 		"px_cord" : ("/multispectral/pile_pixel_position", PointStamped),
         "height" : ("/dji_osdk_ros/local_position", PointStamped),
         "attitude": ("/dji_osdk_ros/attitude", QuaternionStamped),
-	}
+	} 
 
-    glob_pub = ObjectGlobalPositionPublisher(camera_model, geo_ref_dubrovnik, topics, height_offset)
+    glob_pub = ObjectGlobalPositionPublisher(camera_model, geo_ref_hamburg, topics, height_offset)
     glob_pub.start_publishing()

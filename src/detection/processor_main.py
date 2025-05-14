@@ -144,16 +144,27 @@ def send_outcomes(bboxes, img, group_key):
 
     # cv2.imwrite(f'../out/processed/{group_key}.jpg', img)
 
-    for i, bb in enumerate(bboxes):
+    if len(bboxes) > 0:
+        for i, bb in enumerate(bboxes):
+            msg = PointStamped()
+            msg.header.stamp = rospy.Time.now()
+            msg.header.frame_id = group_key + f"_pile{i}"
+            # convert from reduced image coordinates to original image coordinates
+            cx = bb.center[0] * (original_image_size[0] / new_image_size[0])
+            cy = bb.center[1] * (original_image_size[1] / new_image_size[1])
+
+            msg.point.x = cx
+            msg.point.y = cy
+            
+            pos_pixel_pub.publish(msg)
+
+    else:
+        rospy.logwarn("No pile detected. Reporting the image center") #TODO: delete
         msg = PointStamped()
         msg.header.stamp = rospy.Time.now()
-        msg.header.frame_id = group_key + f"_pile{i}"
-        # convert from reduced image coordinates to original image coordinates
-        cx = bb.center[0] * (original_image_size[0] / new_image_size[0])
-        cy = bb.center[1] * (original_image_size[1] / new_image_size[1])
-
-        msg.point.x = cx
-        msg.point.y = cy
+        msg.header.frame_id = group_key + f"_no_pile"
+        msg.point.x = int(original_image_size[0]/2)
+        msg.point.y = int(original_image_size[1]/2)
         
         pos_pixel_pub.publish(msg)
         
@@ -242,7 +253,7 @@ def main():
             print("Connection established " + str(time.time()))
             
             with conn:
-                conn.settimeout(1.0)
+                conn.settimeout(5.0)
                 while not rospy.is_shutdown():
                     res = receive_and_unpack_data(conn, decompressor)
                     if res is None:
