@@ -168,7 +168,7 @@ class ObjectGlobalPositionPublisher:
         else:
             self.gimbal_sub = rospy.Subscriber(topics["gimbal"][0], topics["gimbal"][1], callback=self._gimbal_callback)
         #Pubs
-        self.global_pos_pub = rospy.Publisher("multispectral/pile_global_position", NavSatFix,queue_size=30) # GPS coordinates of object
+        self.global_pos_pub = rospy.Publisher("/multispectral/pile_global_position", NavSatFix,queue_size=30) # GPS coordinates of object
         self.world_enu_pub = rospy.Publisher("/multispectral/pile_enu_position", PointStamped, queue_size=30) # ENU positions of object with respect to reference point
         self._ned_to_enu = lambda ned: (ned[1], ned[0], -ned[2]) # converts ned to enu vector
         #Initialize geo system
@@ -319,8 +319,8 @@ if __name__=="__main__":
     rospy.init_node("object_global_position_publisher")
     camera_model = CameraModel(CAMERA_MATRIX, DISTORTION_COEFFS)
     geo_ref_hamburg = (53.5249978583, 10.00368754, 0.0) # Hamburg experiments reference point
-    geo_ref_dubrovnik = (42.66439066892307, 18.071053781363926, 0.0) # Dubrovnik experiments
-    height_offset = 0.87 # from sea level to drone starting point (in meters)
+    # geo_ref_dubrovnik = (42.66439066892307, 18.071053781363926, 0.0) # Dubrovnik experiments
+    height_offset = 2 # from sea level to drone starting point (in meters)
 
     topics = {
 		"gimbal" : ("gimbal", None),

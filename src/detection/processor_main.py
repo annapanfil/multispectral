@@ -8,8 +8,10 @@ import struct
 import tempfile
 import threading
 import time
+from typing import List
 
 import cv2
+import numpy as np
 # from cv_bridge import CvBridge
 import exiftool
 from matplotlib import pyplot as plt
@@ -128,11 +130,12 @@ def process_whole_img(group_key, images):
         #     plt.imshow(image)
         #     plt.show()
 
-        send_outcomes(merged_bbs, image, group_key)
+        send_outcomes(merged_bbs, image, group_key, image_pub, pos_pixel_pub)
 
-def send_outcomes(bboxes, img, group_key):
+def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_pub, pos_pixel_pub):
     msg = Image()
     msg.header.stamp = rospy.Time.now()
+    msg.header.frame_id = group_key
     msg.height = img.shape[0]
     msg.width = img.shape[1]
     msg.encoding = 'rgb8'
@@ -253,7 +256,7 @@ def main():
             print("Connection established " + str(time.time()))
             
             with conn:
-                conn.settimeout(5.0)
+                conn.settimeout(20.0)
                 while not rospy.is_shutdown():
                     res = receive_and_unpack_data(conn, decompressor)
                     if res is None:

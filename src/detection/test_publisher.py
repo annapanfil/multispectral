@@ -1,25 +1,30 @@
 import rospy
 from sensor_msgs.msg import Image
-import numpy as np
 import os
 import cv2
-import matplotlib.pyplot as plt
 
 rospy.init_node('image_publisher_node')
 pub = rospy.Publisher('/multispectral/detection_image', Image, queue_size=1)
-rate = rospy.Rate(3)
+rate = rospy.Rate(1/3)
 image_dir = "/home/anna/Datasets/raw_images/Hamburg_2025_05_15/images/0001SET/000"
 
 images = sorted([x for x in os.listdir(image_dir) if x.endswith("_1.tif")])
 
 while not rospy.is_shutdown() and len(images) > 0:
+    group_key = images[0].split("_")[1]
     img = cv2.imread(f"{image_dir}/{images.pop(0)}")
+
     msg = Image()
+    msg.header.stamp = rospy.Time.now()
+    msg.header.frame_id = group_key
     msg.height = img.shape[0]
     msg.width = img.shape[1]
     msg.encoding = 'rgb8'
+    msg.is_bigendian = False
     msg.step = img.shape[1] * 3
     msg.data = img.tobytes()
+
     pub.publish(msg)
+
     print(f"Published {msg.header.frame_id}")
     rate.sleep()

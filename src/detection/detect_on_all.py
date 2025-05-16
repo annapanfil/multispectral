@@ -175,8 +175,9 @@ def main(img_dir, bag_path, out_path, model_path, panel, start, end):
     """
     # Start the timer
     start_time = time.time()
-    base_dir_raw = "/home/anna/Datasets/raw_images"
+    base_dir_raw = "/home/anna/Datasets/raw_images/"
     base_dir_annotated = "/home/anna/Datasets/annotated/"
+    # base_dir_annotated = "/home/anna/Datasets/raw_images/"
     base_dir_out = "/home/anna/Datasets/predicted_videos/"
     n_images = main_processing(f"{base_dir_raw}/{img_dir}/images/" , base_dir_annotated + bag_path, base_dir_out + out_path, model_path, panel, start, end)
     print(f"Total execution time: {time.time() - start_time:.2f} seconds for {n_images} images")
