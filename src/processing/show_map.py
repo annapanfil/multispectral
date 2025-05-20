@@ -9,8 +9,8 @@ from dash.dependencies import Input, Output, State
 import dash_leaflet as dl
 
 gps_topic_name = "/dji_osdk_ros/gps_position"
-map_center = [53.46991221,  9.98389836] # Hamburg small bay
-latest_gps = {"lat": map_center[0], "lon": map_center[1]}
+map_start = [53.470129, 9.984008] # Hamburg drone starting point
+latest_gps = {"lat": map_start[0], "lon": map_start[1]}
 video1_path = "/assets/video_gnd.mp4"
 video2_path = "/assets/hamburg_mapping.mp4"
 
@@ -37,15 +37,15 @@ if __name__ == "__main__":
     app = dash.Dash(__name__)
 
     app.layout = html.Div([
-        dl.Map(center=map_center, zoom=18, id="map", children=[
+        dl.Map(center=map_start, zoom=18, id="map", children=[
             dl.TileLayer(url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"),
-            dl.Marker(id="marker", position=map_center),
+            dl.Marker(id="marker", position=map_start),
             dl.Polyline(id="trail", positions=[])
         ], style={'width': '100%', 'height': '600px'}),
         html.Div([
-            html.Video(src=video1_path, controls=True, width="45%", autoPlay=False, loop=True, muted=True),
-            html.Video(src=video2_path, controls=True, width="45%", autoPlay=False, loop=True, muted=True),
-        ], style={'display': 'flex', 'justifyContent': 'space-between', 'marginTop': '20px'}),
+            html.Video(src=video1_path, controls=True, width="56%", autoPlay=False, loop=True, muted=True),
+            html.Video(src=video2_path, controls=True, width="42%", autoPlay=False, loop=True, muted=True),
+        ], style={'display': 'flex', 'alignItems': 'flex-start', 'justifyContent': 'space-between', 'marginTop': '20px'}),
         dcc.Interval(id="interval", interval=300, n_intervals=0),
         dcc.Store(id="path", data=[])
     ])
