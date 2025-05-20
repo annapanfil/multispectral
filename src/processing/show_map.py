@@ -11,6 +11,8 @@ import dash_leaflet as dl
 gps_topic_name = "/dji_osdk_ros/gps_position"
 map_center = [53.46991221,  9.98389836] # Hamburg small bay
 latest_gps = {"lat": map_center[0], "lon": map_center[1]}
+video1_path = "/assets/video_gnd.mp4"
+video2_path = "/assets/hamburg_mapping.mp4"
 
 def gps_callback(msg):
     latest_gps["lat"] = msg.latitude
@@ -40,6 +42,10 @@ if __name__ == "__main__":
             dl.Marker(id="marker", position=map_center),
             dl.Polyline(id="trail", positions=[])
         ], style={'width': '100%', 'height': '600px'}),
+        html.Div([
+            html.Video(src=video1_path, controls=True, width="45%", autoPlay=False, loop=True, muted=True),
+            html.Video(src=video2_path, controls=True, width="45%", autoPlay=False, loop=True, muted=True),
+        ], style={'display': 'flex', 'justifyContent': 'space-between', 'marginTop': '20px'}),
         dcc.Interval(id="interval", interval=300, n_intervals=0),
         dcc.Store(id="path", data=[])
     ])
