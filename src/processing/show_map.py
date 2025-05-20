@@ -1,3 +1,5 @@
+import signal
+import sys
 import threading
 import rospy
 from sensor_msgs.msg import NavSatFix
@@ -8,8 +10,7 @@ import dash_leaflet as dl
 
 gps_topic_name = "/dji_osdk_ros/gps_position"
 map_center = [53.46991221,  9.98389836] # Hamburg small bay
-latest_gps = {"lat": 45, "lon": 15}
-
+latest_gps = {"lat": map_center[0], "lon": map_center[1]}
 
 def gps_callback(msg):
     latest_gps["lat"] = msg.latitude
@@ -20,12 +21,16 @@ def ros_loop():
     while not rospy.is_shutdown():
         rate.sleep()
 
-if __name__ == "__main__":
-    rospy.init_node('gps_listener', anonymous=True)
-    rospy.Subscriber(gps_topic_name, NavSatFix, gps_callback)
 
-    # Spin in background
-    # threading.Thread(target=ros_loop, daemon=True).start()
+def signal_handler(sig, frame):
+    print('Exiting...')
+    sys.exit(0)
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGINT, signal_handler)
+
+    rospy.init_node('gps_map_show', anonymous=True, disable_signals=True)
+    rospy.Subscriber(gps_topic_name, NavSatFix, gps_callback)
     
     app = dash.Dash(__name__)
 
