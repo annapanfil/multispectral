@@ -1,32 +1,55 @@
-import os 
-import exiftool
-import folium
-import rosbag
-import numpy as np
+import threading
+import rospy
+from sensor_msgs.msg import NavSatFix
+import dash
+from dash import dcc, html
+from dash.dependencies import Input, Output, State
+import dash_leaflet as dl
+
+gps_topic_name = "/dji_osdk_ros/gps_position"
+map_center = [53.46991221,  9.98389836] # Hamburg small bay
+latest_gps = {"lat": 45, "lon": 15}
+
+
+def gps_callback(msg):
+    latest_gps["lat"] = msg.latitude
+    latest_gps["lon"] = msg.longitude
+
+def ros_loop():
+    rate = rospy.Rate(10)  # 10 Hz
+    while not rospy.is_shutdown():
+        rate.sleep()
 
 if __name__ == "__main__":
-    img_dir = "/home/anna/Datasets/raw_images/hamburg_2025_05_19/images/0000SET"
-    panel_img = "0000"
-    bag_path = "/home/anna/Datasets/annotated/hamburg_mapping/bags/matriceBag_multispectral_2025-05-19-10-51-49.bag"
-    img_topic_name = "/camera/trigger"
-    gps_topic_name = "/dji_osdk_ros/gps_position"
+    rospy.init_node('gps_listener', anonymous=True)
+    rospy.Subscriber(gps_topic_name, NavSatFix, gps_callback)
 
-    coords = []
+    # Spin in background
+    # threading.Thread(target=ros_loop, daemon=True).start()
+    
+    app = dash.Dash(__name__)
 
-    with rosbag.Bag(bag_path, 'r') as bag:
-        for topic, msg, t in bag.read_messages(topics=[gps_topic_name]):
-            coords.append([msg.latitude, msg.longitude])
-                    
-    coords = np.array(coords)
-    print(np.mean(coords, axis=0))
-    map = folium.Map(location=list(np.mean(coords, axis=0)), zoom_start=18, max_zoom=19)
-    folium.TileLayer(
-        tiles="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
-        attr="Google Satellite",
-        name="Satellite"
-        ).add_to(map)
+    app.layout = html.Div([
+        dl.Map(center=map_center, zoom=18, id="map", children=[
+            dl.TileLayer(url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"),
+            dl.Marker(id="marker", position=map_center),
+            dl.Polyline(id="trail", positions=[])
+        ], style={'width': '100%', 'height': '600px'}),
+        dcc.Interval(id="interval", interval=300, n_intervals=0),
+        dcc.Store(id="path", data=[])
+    ])
+        
+    @app.callback(
+        Output("marker", "position"),
+        Output("map", "center"),
+        Output("trail", "positions"),
+        Output("path", "data"),
+        Input("interval", "n_intervals"),
+        State("path", "data")
+    )
+    def update(n, path):
+        lat, lon = latest_gps["lat"], latest_gps["lon"]
+        path = path + [[lat, lon]]
+        return [lat, lon], [lat, lon], path, path
 
-    folium.LayerControl().add_to(map)
-
-    folium.PolyLine(coords, color="red", weight=3).add_to(map)
-    map.save('../out/mapping_hamburg.html')
+    app.run(debug=True)
