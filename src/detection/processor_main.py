@@ -117,7 +117,7 @@ def process_whole_img(group_key, images):
         pred_bbs = [Rectangle(*bb, "rect") for bb in pred_bbs]
 
         # Merge piles
-        merged_bbs, merged_img = greedy_grouping(pred_bbs, image.shape[:2], resize_factor=1.5, visualize=True)
+        merged_bbs, merged_img, _ = greedy_grouping(pred_bbs, image.shape[:2], resize_factor=1.5, visualize=True)
 
         sizes = get_real_piles_size(image.shape[:2], altitude, CAM_HFOV, CAM_VFOV, merged_bbs)
 
@@ -133,6 +133,7 @@ def process_whole_img(group_key, images):
         send_outcomes(merged_bbs, image, group_key, image_pub, pos_pixel_pub)
 
 def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_pub, pos_pixel_pub):
+    print(f"Sending outcomes for {group_key}")
     msg = Image()
     msg.header.stamp = rospy.Time.now()
     msg.header.frame_id = group_key
@@ -148,6 +149,8 @@ def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_
     # cv2.imwrite(f'../out/processed/{group_key}.jpg', img)
 
     if len(bboxes) > 0:
+        rospy.loginfo(f"Found the piles: {len(bboxes)}")
+
         for i, bb in enumerate(bboxes):
             msg = PointStamped()
             msg.header.stamp = rospy.Time.now()
@@ -160,16 +163,17 @@ def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_
             msg.point.y = cy
             
             pos_pixel_pub.publish(msg)
-
+            rospy.loginfo(f"Published pile {i} position: ({cx}, {cy})")
     else:
-        rospy.logwarn("No pile detected. Reporting the image center") #TODO: delete
-        msg = PointStamped()
-        msg.header.stamp = rospy.Time.now()
-        msg.header.frame_id = group_key + f"_no_pile"
-        msg.point.x = int(original_image_size[0]/2)
-        msg.point.y = int(original_image_size[1]/2)
+        rospy.logwarn("No pile detected.")
+        # rospy.logwarn("No pile detected. Reporting the image center") #TODO: delete
+        # msg = PointStamped()
+        # msg.header.stamp = rospy.Time.now()
+        # msg.header.frame_id = group_key + f"_no_pile"
+        # msg.point.x = int(original_image_size[0]/2)
+        # msg.point.y = int(original_image_size[1]/2)
         
-        pos_pixel_pub.publish(msg)
+        # pos_pixel_pub.publish(msg)
         
     rospy.loginfo(f"Sent positions for {group_key} to rostopic")
 
@@ -209,8 +213,8 @@ def main():
 
     warp_matrices_dir = "/home/anna/Datasets/annotated/warp_matrices"
     model_path = "../models/sea-form8_sea_aug-random_best.pt"
-    panel_path = "/home/anna/Datasets/raw_images/mandrac_2025_04_16/images/0004SET/005"
-    panel_nr = "0436"
+    panel_path = "/home/anna/Datasets/raw_images/temp_panel"
+    panel_nr = "0000"
 
     image_groups = defaultdict(list)
 

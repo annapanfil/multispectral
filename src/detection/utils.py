@@ -37,7 +37,7 @@ def prepare_image(img_aligned: np.array, channels: List, is_complex: bool, new_s
 
     return image
 
-def greedy_grouping(rectangles: List[Rectangle], image_shape: Tuple, resize_factor=1.5, visualize=False) -> Tuple[List, np.array]:
+def greedy_grouping(rectangles: List[Rectangle], image_shape: Tuple, resize_factor=1.5, visualize=False, confidences: List[float] = None) -> Tuple[List, np.array]:
     """
     Merge intersecting rectangles.
     Args:
@@ -45,6 +45,7 @@ def greedy_grouping(rectangles: List[Rectangle], image_shape: Tuple, resize_fact
         image_shape (tuple): Shape of the image (height, width).
         resize_factor (float): Factor to enlarge the rectangles for merging.
         visualize (bool): Whether to visualize the merging process.
+        confidences(list): Confidences for the bbs
     Returns: tuple of
         merged_rectangles (list): List of merged rectangles.
         merged_rectangles_mask (np.array): Visualisation of the merged rectangles.
@@ -64,6 +65,7 @@ def greedy_grouping(rectangles: List[Rectangle], image_shape: Tuple, resize_fact
         merged_mask = cv2.cvtColor(merged_mask, cv2.COLOR_GRAY2RGB)
 
     merged_rectangles = []
+    merged_confidences = []
     for contour in contours:
         # find original rectangles in the groups
         group_rectangles = [rectangle for rectangle in rectangles if cv2.pointPolygonTest(contour, (rectangle.x_l, rectangle.y_b), False) >= 0]
@@ -76,11 +78,13 @@ def greedy_grouping(rectangles: List[Rectangle], image_shape: Tuple, resize_fact
                 y_b = min(r.y_b for r in group_rectangles),
                 y_t = max(r.y_t for r in group_rectangles)
             ))
+
+            merged_confidences.append(np.mean([confidences[i] for i, r in enumerate(rectangles) if r in group_rectangles]))
         
             if visualize:
                 merged_rectangles[-1].draw(merged_mask, color=(255, 0, 0), thickness=5)
 
-    return merged_rectangles, merged_mask
+    return merged_rectangles, merged_mask, merged_confidences
 
 def get_real_piles_size(
     im_shape: np.array, altitude: float, cam_hfov: float, cam_vfov: float, rectangles: list

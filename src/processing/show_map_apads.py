@@ -15,13 +15,21 @@ gps1_path = []
 gps2_path = []
 map_start = [53.470129, 9.984008] # Hamburg drone starting point
 
+#10.0.15.14 ant:3 blue: 50, red:60 
 
 app.layout = html.Div([
     dcc.Store(id='gps1_store'), 
     dcc.Store(id='gps2_store'),
     dcc.Interval(id='update', interval=1000, n_intervals=0),
-    dl.Map(center=map_start, zoom=18, id="map", style={"height": "500px"}),
-    html.Video(src="/assets/apads.mp4", controls=True, loop=True, muted=True, style={"width": "50%", "marginTop": "20px"})
+    html.H3("SeaBees", style={'textAlign': 'center', 'fontSize': '3em'}),
+    html.Div([
+        dl.Map(center=map_start, zoom=18, id="map", style={"height": "500px", "width": "50%"}),
+        html.Video(src="/assets/apads_2_litter.mp4", controls=True, loop=True, muted=True, style={"width": "50%", "marginLeft": "20px"})
+        ], style={'display': 'flex', 'justifyContent': 'center', 'gap': '20px'}),
+        html.Div([
+            html.Video(src="/assets/apads_seacat.mp4", controls=True, loop=True, muted=True, style={"width": "50%"})
+        ], style={'textAlign': 'center', 'marginTop': '20px'})
+
 ])
 
 def handle_gps1(msg):
@@ -44,8 +52,8 @@ def make_listener(url, topic, handler):
     Thread(target=ws.run_forever, daemon=True).start()
 
 # Replace with your rosbridge websocket URLs and topics
-make_listener("ws://127.0.0.0:9091", "/mljet/gps", handle_gps1)
-make_listener("ws://127.0.0.0:9091", "/losinj/gps", handle_gps2)
+make_listener("ws://127.0.0.1:9091", "/mljet/gps", handle_gps1) #red
+make_listener("ws://127.0.0.1:9091", "/losinj/gps", handle_gps2) #blue
 
 @app.callback(
     Output("map", "children"),
@@ -57,13 +65,13 @@ def update_map(_):
 
     if latest_gps1:
         gps1_path.append([latest_gps1["latitude"], latest_gps1["longitude"]])
-        children.append(dl.Polyline(positions=gps1_path, color="red"))
-        children.append(dl.CircleMarker(center=gps1_path[-1], radius=5, color="red",  fillColor="red", fillOpacity=1))
+        children.append(dl.Polyline(positions=gps1_path, color="blue"))
+        children.append(dl.CircleMarker(center=gps1_path[-1], radius=5, color="blue",  fillColor="blue", fillOpacity=1))
 
     if latest_gps2:
         gps2_path.append([latest_gps2["latitude"], latest_gps2["longitude"]])
-        children.append(dl.Polyline(positions=gps2_path, color="blue"))
-        children.append(dl.CircleMarker(center=gps2_path[-1], radius=5, color="blue",  fillColor="blue", fillOpacity=1))
+        children.append(dl.Polyline(positions=gps2_path, color="red"))
+        children.append(dl.CircleMarker(center=gps2_path[-1], radius=5, color="red",  fillColor="red", fillOpacity=1))
 
     return children
 

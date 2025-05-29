@@ -52,7 +52,7 @@ def main():
     pred_bbs = [Rectangle(*bb, "rect") for bb in pred_bbs]
 
     # Merge piles
-    merged_bbs, merged_img = time_decorator(greedy_grouping)(pred_bbs, image.shape[:2], resize_factor=1.5, visualize=True)
+    merged_bbs, merged_img, _ = time_decorator(greedy_grouping)(pred_bbs, image.shape[:2], resize_factor=1.5, visualize=True)
 
     # TODO: Get position in the world
     sizes = time_decorator(get_real_piles_size)(image.shape[:2], altitude - POOL_HEIGHT, CAM_HFOV, CAM_VFOV, merged_bbs)

@@ -17,7 +17,7 @@ def main_processing(img_dir, bag_path, out_path, model_path, panel_img_nr, start
     # Configuration (keep your original parameters)
     warp_matrices_dir = "/home/anna/Datasets/annotated/warp_matrices"
     topic_name = "/camera/trigger"
-    fps = 9   # About 3 times faster than image acquisition
+    fps = 3   # About 3 times faster than image acquisition
     new_image_size = (800, 608)
     formula = "(N - (E - N))"
     channels = ["N", "G", formula]
@@ -117,19 +117,21 @@ def process_batch(batch, model, output_queue, future_map):
     # Batch prediction
     images = [img for _, img in sorted(results, key=lambda x: x[0])]
     batch_results = model(images, augment=False, verbose=False)
-
+    
     # Post-process and enqueue
     for (img_nr, _), results in zip(sorted(results, key=lambda x: x[0]), batch_results):
-        merged_bbs, _ = greedy_grouping(
+        merged_bbs, _, merged_confidences = greedy_grouping(
             [Rectangle(*bb.xyxy[0].cpu().numpy(), "rect") for bb in results.boxes],
             images[0].shape[:2],
-            resize_factor=1.5
+            resize_factor=1.5,
+            confidences=results.boxes.conf.cpu().numpy(),
         )
         
         # Draw on image
         image = images.pop(0)
-        for rect in merged_bbs:
+        for rect, conf in zip(merged_bbs, merged_confidences):
             rect.draw(image, color=(0, 255, 0), thickness=2)
+            cv2.putText(image, f"{conf:.2f}", (rect.x_l, rect.y_b), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
         
         output_queue.put((img_nr, image))
 
@@ -177,7 +179,6 @@ def main(img_dir, bag_path, out_path, model_path, panel, start, end):
     start_time = time.time()
     base_dir_raw = "/home/anna/Datasets/raw_images/"
     base_dir_annotated = "/home/anna/Datasets/annotated/"
-    # base_dir_annotated = "/home/anna/Datasets/raw_images/"
     base_dir_out = "/home/anna/Datasets/predicted_videos/"
     n_images = main_processing(f"{base_dir_raw}/{img_dir}/images/" , base_dir_annotated + bag_path, base_dir_out + out_path, model_path, panel, start, end)
     print(f"Total execution time: {time.time() - start_time:.2f} seconds for {n_images} images")

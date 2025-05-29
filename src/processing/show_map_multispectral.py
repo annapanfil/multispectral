@@ -11,7 +11,7 @@ import dash_leaflet as dl
 gps_topic_name = "/dji_osdk_ros/gps_position"
 map_start = [53.470129, 9.984008] # Hamburg drone starting point
 latest_gps = {"lat": map_start[0], "lon": map_start[1]}
-video1_path = "/assets/video_gnd.mp4"
+video1_path = "/assets/multispectral.mp4"
 video2_path = "/assets/hamburg_mapping.mp4"
 
 def gps_callback(msg):
@@ -37,11 +37,12 @@ if __name__ == "__main__":
     app = dash.Dash(__name__)
 
     app.layout = html.Div([
+        html.H3("SeaHawk", style={'textAlign': 'center', 'fontSize': '1.5em'}),
         dl.Map(center=map_start, zoom=18, id="map", children=[
             dl.TileLayer(url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"),
             dl.Marker(id="marker", position=map_start),
             dl.Polyline(id="trail", positions=[])
-        ], style={'width': '100%', 'height': '600px'}),
+        ], style={'width': '100%', 'height': '500px'}),
         html.Div([
             html.Video(src=video1_path, controls=True, width="56%", autoPlay=False, loop=True, muted=True),
             html.Video(src=video2_path, controls=True, width="42%", autoPlay=False, loop=True, muted=True),
@@ -63,4 +64,4 @@ if __name__ == "__main__":
         path = path + [[lat, lon]]
         return [lat, lon], [lat, lon], path, path
 
-    app.run(debug=True)
+    app.run()
