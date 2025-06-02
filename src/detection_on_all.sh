@@ -13,3 +13,8 @@ python3 -m detection.detect_on_all -b "mandrac3/bags/matriceBag_multispectral_20
 # python3 -m detection.detect_on_all -b "mandrac3/bags/matriceBag_multispectral_2016-02-11-18-59-05.bag" -o "transparent3.mp4" -i "mandrac_2025_04_16" -p "0436" -s 449 -e 600
 python3 -m detection.detect_on_all -b "mandrac3/bags/matriceBag_multispectral_2016-02-11-19-09-56.bag" -o "green3.mp4" -i "mandrac_2025_04_16" -p "0436" -s 602 -e 825
 # python3 -m detection.detect_on_all -b "mandrac3/bags/matriceBag_multispectral_2016-02-11-19-25-55.bag" -o "green_and_transparent.mp4" -i "mandrac_2025_04_16" -p "0436" -s 839 -e 1095
+
+python3 -m detection.detect_on_all -i hamburg_2025_05_15 -b hamburg/bags/matriceBag_multispectral_2025-05-15-12-04-05.bag -o hamburg_yolo_form8.mp4 -p 0017 -s 46 -e 299
+python3 -m detection.detect_on_all -i hamburg_2025_05_19 -b hamburg_mapping/bags/matriceBag_multispectral_2025-05-19-10-51-49.bag -o hamburg_mapping.mp4 -p 0000 -s 106 -e 482
+
+python3 -m detection.detect_on_all -i hamburg_2025_05_19 -b hamburg_mapping/bags/matriceBag_multispectral_2025-05-19-10-51-49.bag -o hamburg_test.mp4 -p 0000 -s 213 -e 216

@@ -6,6 +6,7 @@
 *.npy
 *.jpg
 *.png
+*.svg
 *.txt
 process_multispectral_images/out/*
 */__pycache__/*
@@ -20,6 +21,7 @@ src/datasets/*
 runs/*
 src/multirun/
 models/
+mlruns/
 
 # inputs
 input/*
@@ -27,6 +29,8 @@ input/*
 datasets/*
 conf/
 models/
+dev/show/assets/
+
 
 
 # imported code

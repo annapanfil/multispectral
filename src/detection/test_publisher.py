@@ -6,13 +6,18 @@ import cv2
 rospy.init_node('image_publisher_node')
 pub = rospy.Publisher('/multispectral/detection_image', Image, queue_size=1)
 rate = rospy.Rate(1/3)
-image_dir = "/home/anna/Datasets/raw_images/Hamburg_2025_05_15/images/0001SET/000"
+image_dir = "/home/anna/Datasets/raw_images/hamburg_2025_05_19/images/0000SET"
 
-images = sorted([x for x in os.listdir(image_dir) if x.endswith("_1.tif")])
+image_dirs = [f"{image_dir}/{i:03d}" for i in range(3)]
+
+images = []
+for id in image_dirs:
+    images.extend(sorted([x for x in os.listdir(id) if x.endswith("_1.tif")]))
 
 while not rospy.is_shutdown() and len(images) > 0:
     group_key = images[0].split("_")[1]
-    img = cv2.imread(f"{image_dir}/{images.pop(0)}")
+
+    img = cv2.imread(f"{image_dir}/{int(group_key)//200:03}/{images.pop(0)}")
 
     msg = Image()
     msg.header.stamp = rospy.Time.now()

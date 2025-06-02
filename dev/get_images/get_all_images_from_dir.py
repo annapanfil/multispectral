@@ -1,9 +1,6 @@
 import requests
 import os
 
-
-
-
 set_nr = 1
 
 if set_nr == -1:

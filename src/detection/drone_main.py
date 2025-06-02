@@ -113,8 +113,8 @@ if __name__ == "__main__":
     #     rospy.logerr("Failed to ping the camera")
     #     exit(1)
 
-    image_dir = "/home/anna/Datasets/raw_images/mandrac_2025_04_16/images/0004SET/004"
-    image_nr = 839
+    image_dir = "/home/anna/Datasets/raw_images/hamburg_2025_05_19/images/0000SET/000"
+    image_nr = 150
     ch = 1
     end_image_nr = 999
     receiver_ip = "127.0.0.1" #'10.2.119.163' # port 5000
