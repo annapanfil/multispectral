@@ -3,9 +3,9 @@ import hydra
 from pathlib import Path
 import numpy as np
 
-from processing.load import align_from_saved_matrices, align_iterative, get_altitude, load_image_set, get_irradiance, save_warp_matrices
-from processing.visualise import get_components_view, save_image, CHANNELS
-from processing.evaluate_index import get_custom_index
+from dev.visualise import get_components_view, save_image, CHANNELS
+from src.processing.load import align_from_saved_matrices, align_iterative, get_altitude, load_image_set, get_irradiance, save_warp_matrices
+from src.processing.evaluate_index import get_custom_index
 
 def threshold_percentiles(image):
     image[image > np.percentile(image, 99.99)] = np.percentile(image, 99.99)

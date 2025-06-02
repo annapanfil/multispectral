@@ -3,7 +3,7 @@ import albumentations as A
 import cv2
 import numpy as np
 
-from processing.load import load_aligned
+from src.processing.load import load_aligned
 
 # --- Augmentation Pipeline ---
 transforms = A.Compose([

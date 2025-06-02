@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import micasense.imageutils as imageutils
-from processing.consts import CHANNELS, EPSILON
+from src.processing.consts import CHANNELS, EPSILON
 
 def show_image(image, title="Image", figsize=(30,23), cmap='gray'):
     """Display an image with a given title."""

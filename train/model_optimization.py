@@ -7,10 +7,9 @@ from itertools import accumulate
 from matplotlib import pyplot as plt
 import numpy as np
 
-from detection.litter_detection import find_litter, pool2abs_rect
-from detection.display import draw_rectangles
-from detection.shapes import Rectangle
-
+from dev.litter_detection import find_litter, pool2abs_rect
+from dev.display import draw_rectangles
+from src.shapes import Rectangle
 
 def iou(box1: Rectangle, box2: Rectangle) -> float:
     """

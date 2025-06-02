@@ -4,9 +4,9 @@ import os
 import hydra
 from pathlib import Path
 
-from processing.load import align_from_saved_matrices, get_altitude, load_image_set, get_irradiance
-from processing.visualise import get_components_view, save_image, CHANNELS
-from processing.evaluate_index import get_custom_index
+from src.processing.load import align_from_saved_matrices, get_altitude, load_image_set, get_irradiance
+from dev.visualise import get_components_view, save_image, CHANNELS
+from src.processing.evaluate_index import get_custom_index
 import micasense.imageutils as imageutils
 
 # you can run with multiple configs at once with python3 -m dataset_creation.export_aligned_channels --multirun processing="mandrac2025_5m,..."

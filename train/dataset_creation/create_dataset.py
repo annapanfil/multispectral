@@ -11,10 +11,10 @@ from sklearn.model_selection import train_test_split
 import yaml
 import click
 
-from processing.load import load_aligned
-from processing.evaluate_index import get_custom_index
-from processing.consts import CHANNELS
-from detection.shapes import Rectangle
+from src.processing.load import load_aligned
+from src.processing.evaluate_index import get_custom_index
+from src.processing.consts import CHANNELS
+from src.shapes import Rectangle
 
 
 def merge_rectangles(rects: List[Rectangle], margin=0) -> List[Rectangle]:

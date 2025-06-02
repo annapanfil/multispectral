@@ -5,9 +5,9 @@ sys.path.append('/home/anna/code/multispectral/src')
 
 from matplotlib import pyplot as plt
 
-from processing.load import load_aligned
-from processing.evaluate_index import get_custom_index
-from processing.consts import CHANNEL_NAMES
+from src.processing.load import load_aligned
+from src.processing.evaluate_index import get_custom_index
+from src.processing.consts import CHANNEL_NAMES
 
 
 if __name__ == "__main__":

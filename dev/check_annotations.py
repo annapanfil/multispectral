@@ -10,7 +10,7 @@ from matplotlib.patches import Patch
 import numpy as np
 import yaml
 
-from detection.litter_detection import find_pool
+from dev.litter_detection import find_pool
 
 """Display gui showing all the items from each class on all the photos from the group. Create the summary for each photo with the number of items of each class. Save everything to out directory."""
 
