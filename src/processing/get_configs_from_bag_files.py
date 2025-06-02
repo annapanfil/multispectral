@@ -24,18 +24,24 @@ import rosbag # you have to init ros
 # panel_image_nr = "0436"
 # images_with_litter = list(range(602,665)) + list(range(667,826))
 
-bag_file = "matriceBag_multispectral_2016-02-11-19-25-55.bag"
-experiment_name = "mandrac2025_04_16_transparent_and_green"
-panel_image_nr = "0436"
-images_with_litter = list(range(839,900)) + list(range(907, 1095))
+# bag_file = "matriceBag_multispectral_2016-02-11-19-25-55.bag"
+# experiment_name = "mandrac2025_04_16_transparent_and_green"
+# panel_image_nr = "0436"
+# images_with_litter = list(range(839,900)) + list(range(907, 1095))
+
+bag_file = "matriceBag_multispectral_2025-05-19-10-51-49.bag"
+experiment_name = "hamburg_mapping"
+panel_image_nr = "0000"
+images_with_litter = list(range(106,483))
 
 
-files_path = "/home/anna/Datasets/mandrac_2025_04_16/"
+files_path = "/home/anna/Datasets/annotated/" + experiment_name + "/"
+raw_images_path ="/home/anna/Datasets/raw_images/hamburg_2025_05_19/"
 config_files_path = "../conf/processing"
-channels_out_path = "/home/anna/Datasets/for_annotation/mandrac_2025_04_16/"
+channels_out_path = "/home/anna/Datasets/for_annotation/hamburg_mapping/"
 topic_name = "/camera/trigger"
 tolerance = 2 # Tolerancja dla point.z
-heights = [5, 10, 15, 20, 25, 30] # Lista wysokości do sprawdzenia
+heights = [15] # Lista wysokości do sprawdzenia #[5, 10, 15, 20, 25, 30]
 
 ##################
 frame_ids = {height: [] for height in heights}
