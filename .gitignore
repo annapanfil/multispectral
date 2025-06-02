@@ -18,6 +18,8 @@ src/detection/runs/*
 src/multirun/
 src/datasets/*
 runs/*
+src/multirun/
+models/
 
 # inputs
 input/*
