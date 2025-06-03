@@ -9,6 +9,7 @@ import cv2
 import matplotlib.pyplot as plt
 
 from train.yolo import read_ground_truth, show_gt_and_pred
+from src.processing.consts import DATASET_BASE_PATH
 
 
 def is_inside(bb, bbs, idx_filter=None):
@@ -152,7 +153,7 @@ class MyValidator(DetectionValidator):
 
 
 if __name__ == "__main__":
-    ds_path = "/home/anna/Datasets/created/pool-form1_pool-3-channels_random/"
+    ds_path = f"{DATASET_BASE_PATH}/created/pool-form1_pool-3-channels_random/"
     FULL_DS = False
 
     if FULL_DS:

@@ -1,9 +1,10 @@
 import cv2
 import os
+from src.processing.consts import DATASET_BASE_PATH
 
 if __name__ == "__main__":
-    image_folder = "/home/anna/Datasets/mandrac_2025_04_04/chosen_images/video/beach/"
-    video_name = '/home/anna/Datasets/mandrac_2025_04_04/chosen_images/video/beach.mp4'
+    image_folder = f"{DATASET_BASE_PATH}/mandrac_2025_04_04/chosen_images/video/beach/"
+    video_name = f"{DATASET_BASE_PATH}/mandrac_2025_04_04/chosen_images/video/beach.mp4"
 
     images = sorted([img for img in os.listdir(image_folder)])
     # images = sorted([img for img in os.listdir(image_folder) if img.endswith("_1.tif")])

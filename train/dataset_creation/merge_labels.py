@@ -3,6 +3,8 @@
 import os
 import sys
 
+from src.processing.consts import DATASET_BASE_PATH
+
 """Get the bounding boxes from all channels and merge them into one file, assigned to each channel."""
 
 
@@ -35,7 +37,7 @@ if __name__ == "__main__":
         print("Usage: python merge_labels.py [dataset_name]")
         sys.exit(1)
 
-    path = f"/home/anna/Datasets/annotated/{sys.argv[1]}"
+    path = f"{DATASET_BASE_PATH}/annotated/{sys.argv[1]}"
     common_fns = set("_".join(file.split("_")[:-1]) for file in os.listdir(f"{path}/images/train/"))
     for common_fn in common_fns:
         merge_bbs_from_all_channels(f"{path}/images/train/", common_fn, f"{path}/labels/train/")

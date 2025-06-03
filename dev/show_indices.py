@@ -7,11 +7,11 @@ from matplotlib import pyplot as plt
 
 from src.processing.load import load_aligned
 from src.processing.evaluate_index import get_custom_index
-from src.processing.consts import CHANNEL_NAMES
+from src.processing.consts import CHANNEL_NAMES, DATASET_BASE_PATH
 
 
 if __name__ == "__main__":
-    base_path = "/home/anna/Datasets/annotated/"
+    base_path = f"{DATASET_BASE_PATH}/annotated/"
 
     images_paths = ["ghost-net/images/train/ghost-net_10_0016_10.png",
                     "black-bed/images/train/black-bed_15_0007_20.png",

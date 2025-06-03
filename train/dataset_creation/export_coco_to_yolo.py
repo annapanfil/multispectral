@@ -6,14 +6,16 @@ from collections import defaultdict
 import os
 import subprocess
 
+from src.processing.consts import DATASET_BASE_PATH
+
 if __name__ == "__main__":
 
-    ds_path = "/home/anna/Datasets/annotated/"
+    ds_path = f"{DATASET_BASE_PATH}/annotated/"
     annots_prefix = "mandrac3" # for the COCO annot file
     desired_annots_prefix = "mandrac" # added to names of images and annotations in the resulting dataset
     experiment_name = "transparent_and_green"
     experiment_time = "12"
-    ds_for_annot_path = f"/home/anna/Datasets/for_annotation/mandrac_2025_04_16/mandrac2025_04_16_{experiment_name}"
+    ds_for_annot_path = f"{DATASET_BASE_PATH}/for_annotation/mandrac_2025_04_16/mandrac2025_04_16_{experiment_name}"
     show = False
 
     # ----------------------------------------------------------------------------------

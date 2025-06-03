@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 
 from src.processing.load import load_aligned
+from src.processing.consts import DATASET_BASE_PATH
 
 # --- Augmentation Pipeline ---
 transforms = A.Compose([
@@ -92,6 +93,6 @@ def pre_augment_dataset(base_dir, n_augment=2):
 if __name__ == "__main__":
     random.seed(42)
     pre_augment_dataset(
-        base_dir="/home/anna/Datasets/annotated/mandrac3/",
+        base_dir=f"{DATASET_BASE_PATH}/annotated/mandrac3/",
         n_augment=2  # Generate 2 augmented versions per original image
     )

@@ -2,12 +2,13 @@ import rospy
 from sensor_msgs.msg import Image
 import os
 import cv2
+from src.processing.consts import DATASET_BASE_PATH
 
 if __name__ == "__main__":
     rospy.init_node('image_publisher_node')
     pub = rospy.Publisher('/multispectral/detection_image', Image, queue_size=1)
     rate = rospy.Rate(1/3)
-    image_dir = "/home/anna/Datasets/raw_images/hamburg_2025_05_19/images/0000SET"
+    image_dir = f"{DATASET_BASE_PATH}/raw_images/hamburg_2025_05_19/images/0000SET"
 
     image_dirs = [f"{image_dir}/{i:03d}" for i in range(3)]
 

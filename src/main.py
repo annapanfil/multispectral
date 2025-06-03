@@ -12,9 +12,9 @@ from src.processing.consts import *
 def main():
     """Main function for detection and pile positioning. (NOT TESTED YET)""" #TODO: this will be the main file
 
-    img_dir = "/home/anna/Datasets/raw_images/mandrac_2025_04_16/images/0004SET/005" 
+    img_dir = f"{DATASET_BASE_PATH}/raw_images/mandrac_2025_04_16/images/0004SET/005" 
     model_path = "../models/sea-form8_sea_aug-random_best.pt"
-    warp_matrices_dir = "/home/anna/Datasets/annotated/warp_matrices"
+    warp_matrices_dir = f"{DATASET_BASE_PATH}/annotated/warp_matrices"
     img_nr = "1049"
     panel_img_nr = "0436"
     altitude = 10

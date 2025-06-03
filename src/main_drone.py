@@ -15,6 +15,7 @@ import zstandard as zstd
 
 # only for local testing
 from src.processing.load import find_images
+from src.processing.consts import DATASET_BASE_PATH
 import cv2
 from pathlib import Path
 from matplotlib import pyplot as plt
@@ -63,7 +64,7 @@ def get_image_from_camera(url, params, output_dir=None):
         return None
 
 
-def get_image_from_local_directory(path = "/home/anna/Datasets/raw_images/pool/realistic_trash/0034SET/000", img_nr = "0004"):
+def get_image_from_local_directory(path = f"{DATASET_BASE_PATH}/raw_images/pool/realistic_trash/0034SET/000", img_nr = "0004"):
     # get images from local directory
     image_names = find_images(Path(path), img_nr, no_panchromatic=True)
 
@@ -115,7 +116,7 @@ if __name__ == "__main__":
     #     rospy.logerr("Failed to ping the camera")
     #     exit(1)
 
-    image_dir = "/home/anna/Datasets/raw_images/hamburg_2025_05_19/images/0000SET/000"
+    image_dir = f"{DATASET_BASE_PATH}/raw_images/hamburg_2025_05_19/images/0000SET/000"
     image_nr = 150
     ch = 1
     end_image_nr = 999

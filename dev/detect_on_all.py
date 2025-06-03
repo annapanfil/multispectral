@@ -12,10 +12,11 @@ import threading
 from src.shapes import Rectangle
 from src.utils import greedy_grouping, prepare_image
 from src.processing.load import align_from_saved_matrices, get_irradiance, load_all_warp_matrices, load_image_set
+from src.processing.consts import DATASET_BASE_PATH
 
 def main_processing(img_dir, bag_path, out_path, model_path, panel_img_nr, start_from, end_on):
     # Configuration (keep your original parameters)
-    warp_matrices_dir = "/home/anna/Datasets/annotated/warp_matrices"
+    warp_matrices_dir = f"{DATASET_BASE_PATH}/annotated/warp_matrices"
     topic_name = "/camera/trigger"
     fps = 3   # About 3 times faster than image acquisition
     new_image_size = (800, 608)
@@ -177,9 +178,9 @@ def main(img_dir, bag_path, out_path, model_path, panel, start, end):
     """
     # Start the timer
     start_time = time.time()
-    base_dir_raw = "/home/anna/Datasets/raw_images/"
-    base_dir_annotated = "/home/anna/Datasets/annotated/"
-    base_dir_out = "/home/anna/Datasets/predicted_videos/"
+    base_dir_raw = f"{DATASET_BASE_PATH}/raw_images/"
+    base_dir_annotated = f"{DATASET_BASE_PATH}/annotated/"
+    base_dir_out = f"{DATASET_BASE_PATH}/predicted_videos/"
     n_images = main_processing(f"{base_dir_raw}/{img_dir}/images/" , base_dir_annotated + bag_path, base_dir_out + out_path, model_path, panel, start, end)
     print(f"Total execution time: {time.time() - start_time:.2f} seconds for {n_images} images")
 

@@ -1,7 +1,9 @@
 import os
 
+from src.processing.consts import DATASET_BASE_PATH
+
 if __name__ == "__main__":
-    base_dir = "/home/anna/Datasets/for_annotation/"
+    base_dir = f"{DATASET_BASE_PATH}/for_annotation/"
     for d in os.listdir(base_dir):
         if not os.path.isdir(base_dir + d):
             continue

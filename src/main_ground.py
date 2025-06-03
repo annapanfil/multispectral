@@ -28,7 +28,7 @@ import zstandard as zstd
 from src.shapes import Rectangle
 from src.utils import get_real_piles_size, greedy_grouping, prepare_image
 from src.processing.load import align_from_saved_matrices, find_images, get_irradiance, load_all_warp_matrices, load_image_set
-from src.processing.consts import CAM_HFOV, CAM_VFOV
+from src.processing.consts import CAM_HFOV, CAM_VFOV, DATASET_BASE_PATH
 
 import sys
 import micasense.capture as capture
@@ -212,9 +212,9 @@ def main():
     rospy.init_node("litter_detection_publisher")
     rospy.loginfo("Node has been started")
 
-    warp_matrices_dir = "/home/anna/Datasets/annotated/warp_matrices"
+    warp_matrices_dir = f"{DATASET_BASE_PATH}/annotated/warp_matrices"
     model_path = "../models/sea-form8_sea_aug-random_best.pt"
-    panel_path = "/home/anna/Datasets/raw_images/temp_panel"
+    panel_path = f"{DATASET_BASE_PATH}/raw_images/temp_panel"
     panel_nr = "0000"
 
     image_groups = defaultdict(list)

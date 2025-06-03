@@ -8,6 +8,7 @@ import time
 
 import rospy
 import zstandard as zstd
+from src.processing.consts import DATASET_BASE_PATH
 
 def receive_and_unpack_data(conn, decompressor):
     # receive the size of the filename and the filename
@@ -60,7 +61,7 @@ def main():
     rospy.init_node("multispectral_panel_handler")
     rospy.loginfo("Node has been started")
 
-    panel_dir = "/home/anna/Datasets/raw_images/temp_panel" # where to save it
+    panel_dir = f"{DATASET_BASE_PATH}/raw_images/temp_panel" # where to save it
 
     image_groups = defaultdict(list)
 

@@ -13,7 +13,7 @@ import click
 
 from src.processing.load import load_aligned
 from src.processing.evaluate_index import get_custom_index
-from src.processing.consts import CHANNELS
+from src.processing.consts import CHANNELS, DATASET_BASE_PATH
 from src.shapes import Rectangle
 
 
@@ -46,7 +46,7 @@ def merge_rectangles(rects: List[Rectangle], margin=0) -> List[Rectangle]:
     return merged
 
 def read_all_datasets(
-    dataset_path="/home/anna/Datasets/annotated",
+    dataset_path=f"{DATASET_BASE_PATH}/annotated",
     excluded_litter=["grass_bio_brown", "flake_PE_black", "flake_PE_transparent"],
     excluded_sets=[],
     channel="RGB.png",
@@ -291,7 +291,7 @@ def main(pile_margin, new_image_size, split, new_dataset_name, channels, exclude
     print(f"Creating a dataset {new_dataset_name}...")
 
     is_complex = False
-    new_dataset_path = f"/home/anna/Datasets/created/{new_dataset_name}"
+    new_dataset_path = f"{DATASET_BASE_PATH}/created/{new_dataset_name}"
 
     if os.path.exists(new_dataset_path):
         print("Dataset already exists. Skipping...")
@@ -312,7 +312,7 @@ def main(pile_margin, new_image_size, split, new_dataset_name, channels, exclude
     print("Reading images from datasets ...")
 
     df = read_all_datasets(
-        dataset_path="/home/anna/Datasets/annotated",
+        dataset_path=f"{DATASET_BASE_PATH}/annotated",
         excluded_litter=["grass_bio_brown", "flake_PE_black", "flake_PE_transparent"],
         excluded_sets=exclude,
         channel="ch0.tiff",

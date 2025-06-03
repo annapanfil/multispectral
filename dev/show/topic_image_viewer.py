@@ -1,7 +1,6 @@
 """Get images from a topic and optionally draw rectangles on them and publish the positions for debugging purposes."""
 
 import rospy
-from sensor_msgs.msg import Image
 import numpy as np
 import cv2
 

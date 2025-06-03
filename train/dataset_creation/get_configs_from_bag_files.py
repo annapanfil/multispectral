@@ -8,6 +8,8 @@ import numpy as np
 import yaml
 import rosbag # you have to init ros
 
+from src.processing.consts import DATASET_BASE_PATH
+
 if __name__ == "__main__":
     # Configurations
     # bag_file = "matriceBag_multispectral_2016-02-11-18-02-40.bag"
@@ -41,10 +43,10 @@ if __name__ == "__main__":
     images_with_litter = list(range(106,483))
 
 
-    files_path = "/home/anna/Datasets/annotated/" + experiment_name + "/"
-    raw_images_path ="/home/anna/Datasets/raw_images/hamburg_2025_05_19/"
+    files_path = f"{DATASET_BASE_PATH}/annotated/" + experiment_name + "/"
+    raw_images_path =f"{DATASET_BASE_PATH}/raw_images/hamburg_2025_05_19/"
     config_files_path = "../conf/processing"
-    channels_out_path = "/home/anna/Datasets/for_annotation/hamburg_mapping/"
+    channels_out_path = f"{DATASET_BASE_PATH}/for_annotation/hamburg_mapping/"
     topic_name = "/camera/trigger"
     tolerance = 2 # Tolerancja dla point.z
     heights = [15] # Lista wysokości do sprawdzenia #[5, 10, 15, 20, 25, 30]
@@ -90,7 +92,7 @@ if __name__ == "__main__":
     def create_config(image_paths, height, suffix=""):
         paths = {
             "images": f"{files_path}/images/", ## + set/subset",
-            "warp_matrices": "/home/anna/Datasets/annotated/warp_matrices",
+            "warp_matrices": f"{DATASET_BASE_PATH}/annotated/warp_matrices",
             "panel_image_nr": panel_image_nr,
             "output": f"{files_path}/chosen_images/", # + name/altitude
             "channels_output": channels_out_path # + name/altitude

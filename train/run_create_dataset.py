@@ -129,7 +129,7 @@ if __name__ == "__main__":
     
     # SEND TO REMOTE
     # print("Create zip and send it to remote host")
-    # dataset_dir = "/home/anna/Datasets/created"
+    # dataset_dir = f"{DATASET_BASE_PATH}/created"
     # remote_host = "lariat@10.2.116.180"
     # remote_path = f"/home/lariat/code/anna/datasets"
     

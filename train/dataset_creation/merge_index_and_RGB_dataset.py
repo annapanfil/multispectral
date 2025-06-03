@@ -2,6 +2,8 @@ import os
 import shutil
 import click
 
+from src.processing.consts import DATASET_BASE_PATH
+
 @click.command()
 @click.option("--dataset_type", "-d", help="Dataset type (e.g. _whole_random)")
 @click.option("-index_dataset", "-i", default="", help="Index dataset name (e.g. ghost-net-)")
@@ -19,7 +21,7 @@ def main(dataset_type, index_dataset):
     None
     """
 
-    dataset_path = "/home/anna/Datasets/created"
+    dataset_path = f"{DATASET_BASE_PATH}/created"
     rgb_path = f"{dataset_path}/RGB_{dataset_type}"
     dirs = next(os.walk(dataset_path))[1]
     for old_name in dirs:

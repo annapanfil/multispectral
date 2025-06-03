@@ -11,6 +11,7 @@ import numpy as np
 import yaml
 
 from dev.litter_detection import find_pool
+from src.processing.consts import DATASET_BASE_PATH
 
 """Display gui showing all the items from each class on all the photos from the group. Create the summary for each photo with the number of items of each class. Save everything to out directory."""
 
@@ -123,7 +124,7 @@ if __name__ == "__main__":
         print("Usage: python3 check_annotations.py [dataset_name] [out_path] [groups]")
         sys.exit(1)
 
-    path = f"/home/anna/Datasets/annotated/{sys.argv[1]}"
+    path = f"{DATASET_BASE_PATH}/annotated/{sys.argv[1]}"
     out_path = sys.argv[2]
     groups = sys.argv[3:]  # ["9:00", "12:00", "15:00", "5_bags"]
     image_fns = [
