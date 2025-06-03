@@ -1,6 +1,6 @@
 import numpy as np
 import micasense.imageutils as imageutils
-from processing.consts import OPERATIONS, CHANNELS
+from src.processing.consts import OPERATIONS, CHANNELS
 
 def evaluate_postfix(expression: str, variables: dict) -> np.array:
     """
