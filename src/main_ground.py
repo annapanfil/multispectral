@@ -118,19 +118,11 @@ def process_whole_img(group_key, images):
         pred_bbs = [Rectangle(*bb, "rect") for bb in pred_bbs]
 
         # Merge piles
-        merged_bbs, merged_img, _ = greedy_grouping(pred_bbs, image.shape[:2], resize_factor=1.5, visualize=True)
+        merged_bbs, merged_img, _ = greedy_grouping(pred_bbs, image.shape[:2], resize_factor=1.5, visualize=False)
 
-        sizes = get_real_piles_size(image.shape[:2], altitude, CAM_HFOV, CAM_VFOV, merged_bbs)
-
-        for rect, size in zip(merged_bbs, sizes):
+        for rect in merged_bbs:
             rect.draw(image, color=(0, 255, 0), thickness=2)
-            text = f"{size[0]*100:.0f}x{size[1]*100:.0f}" # cm
-            # cv2.putText(image, text, (rect.x_l, rect.y_b), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-
-        # if DEBUG:
-        #     plt.imshow(image)
-        #     plt.show()
-
+            
         send_outcomes(merged_bbs, image, group_key, image_pub, pos_pixel_pub)
 
 def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_pub, pos_pixel_pub):
@@ -150,8 +142,6 @@ def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_
     # cv2.imwrite(f'../out/processed/{group_key}.jpg', img)
 
     if len(bboxes) > 0:
-        rospy.loginfo(f"Found the piles: {len(bboxes)}")
-
         for i, bb in enumerate(bboxes):
             msg = PointStamped()
             msg.header.stamp = rospy.Time.now()
@@ -164,9 +154,9 @@ def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_
             msg.point.y = cy
             
             pos_pixel_pub.publish(msg)
-            rospy.loginfo(f"Published pile {i} position: ({cx}, {cy})")
+            rospy.loginfo(f"Sent positions for {group_key} to rostopic")
     else:
-        rospy.logwarn("No pile detected.")
+        rospy.logwarn("No pile detected. No positions to publish.")
         # rospy.logwarn("No pile detected. Reporting the image center") #TODO: delete
         # msg = PointStamped()
         # msg.header.stamp = rospy.Time.now()
@@ -176,7 +166,6 @@ def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_
         
         # pos_pixel_pub.publish(msg)
         
-    rospy.loginfo(f"Sent positions for {group_key} to rostopic")
 
 
 def exit_threads(executor, server):
@@ -213,7 +202,7 @@ def main():
     rospy.loginfo("Node has been started")
 
     warp_matrices_dir = f"{DATASET_BASE_PATH}/annotated/warp_matrices"
-    model_path = "../models/sea-form8_sea_aug-random_best.pt"
+    model_path = "models/sea-form8_sea_aug-random_best.pt"
     panel_path = f"{DATASET_BASE_PATH}/raw_images/temp_panel"
     panel_nr = "0000"
 

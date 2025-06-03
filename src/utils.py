@@ -79,7 +79,8 @@ def greedy_grouping(rectangles: List[Rectangle], image_shape: Tuple, resize_fact
                 y_t = max(r.y_t for r in group_rectangles)
             ))
 
-            merged_confidences.append(np.mean([confidences[i] for i, r in enumerate(rectangles) if r in group_rectangles]))
+            if confidences is not None:
+                merged_confidences.append(np.mean([confidences[i] for i, r in enumerate(rectangles) if r in group_rectangles]))
         
             if visualize:
                 merged_rectangles[-1].draw(merged_mask, color=(255, 0, 0), thickness=5)
