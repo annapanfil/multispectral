@@ -60,7 +60,10 @@ def send_compressed_from_dir(path, cctx, sock, del_file=False):
             os.remove(path)
     except (ConnectionResetError, BrokenPipeError):
         rospy.loginfo("Connection reset by peer. Exiting.")
-        exit(1)
+        rospy.signal_shutdown("Connection reset by peer")
+        raise ConnectionResetError("Connection reset by peer. Exiting.")
+        # exit(1)
+
         
 
 def save_image(output_dir, response, photo_nr, ch):
@@ -106,6 +109,8 @@ if __name__ == "__main__":
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     sock.connect((receiver_ip, 5000))
+    socket_connected = True
+
     while not rospy.is_shutdown():
         start = time.time()
         print("Capturing photo")
@@ -117,8 +122,12 @@ if __name__ == "__main__":
             paths = get_image_from_camera(url, params)
 
         for path in paths:
-            send_compressed_from_dir(path, cctx, sock, del_file= not DEBUG) # delete file if not in debug mode
-            print("Sent: {}".format(path))
+            try:
+                send_compressed_from_dir(path, cctx, sock, del_file= not DEBUG) # delete file if not in debug mode
+                print("Sent: {}".format(path))
+            except (ConnectionResetError, BrokenPipeError):
+                socket_connected = False
+                break
 
         end = time.time()
         print("time for this photo: {} ".format(end-start))
@@ -130,7 +139,9 @@ if __name__ == "__main__":
                 break
                 
         trigger_rate.sleep()
-    sock.shutdown(socket.SHUT_RDWR)
+
+    if socket_connected:
+        sock.shutdown(socket.SHUT_RDWR)
     sock.close()
 
     print("TIME STATISTICS:")
