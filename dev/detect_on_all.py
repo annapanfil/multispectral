@@ -9,9 +9,9 @@ from concurrent.futures import ThreadPoolExecutor
 from ultralytics import YOLO
 import queue
 import threading
-from detection.shapes import Rectangle
-from detection.utils import greedy_grouping, prepare_image
-from processing.load import align_from_saved_matrices, get_irradiance, load_all_warp_matrices, load_image_set
+from src.shapes import Rectangle
+from src.utils import greedy_grouping, prepare_image
+from src.processing.load import align_from_saved_matrices, get_irradiance, load_all_warp_matrices, load_image_set
 
 def main_processing(img_dir, bag_path, out_path, model_path, panel_img_nr, start_from, end_on):
     # Configuration (keep your original parameters)

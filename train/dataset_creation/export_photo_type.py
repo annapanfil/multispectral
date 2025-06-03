@@ -1,3 +1,9 @@
+"""Export aligned images in RGB and BReNir format for visual checking and further processing.
+
+You can run with multiple configs at once with python3 -m dataset_creation.export_photo_type --multirun processing="mandrac2025_5m,..."
+The configs should be in the 'conf/processing' folder
+"""
+
 import os
 import hydra
 from pathlib import Path
@@ -13,8 +19,7 @@ def threshold_percentiles(image):
 
     return image
 
-# you can run with multiple configs at once with python3 -m dataset_creation.export_photo_type --multirun processing="mandrac2025_5m,..."
-# the configs should be in the 'conf/processing' folder
+
 @hydra.main(config_path="../../conf", config_name="config", version_base=None)
 def main(cfg):
     cfg = cfg.processing

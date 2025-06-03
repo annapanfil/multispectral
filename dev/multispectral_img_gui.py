@@ -2,7 +2,9 @@ from matplotlib import pyplot as plt
 from matplotlib.widgets import Button, Slider, TextBox
 import pyperclip
 
-from processing.visualise import get_components_view, get_index_view, get_PI_image, CHANNEL_NAMES, CHANNELS, get_custom_index
+from dev.visualise import get_components_view, get_index_view, get_PI_image
+from src.processing.evaluate_index import get_custom_index
+from src.processing.consts import CHANNEL_NAMES, CHANNELS
 
 def show_components_interactive(img_aligned, img_no="0000"):
     def show_components_view(img, band_indices):

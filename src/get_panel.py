@@ -1,3 +1,5 @@
+"""Get one multispectral photo from the camera and save it to a directory."""
+
 from collections import defaultdict
 import os
 import socket

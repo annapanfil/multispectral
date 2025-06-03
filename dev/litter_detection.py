@@ -5,7 +5,7 @@ from typing import List, Tuple
 from skimage.filters import difference_of_gaussians
 from skimage import img_as_float
 
-from detection.shapes import Circle, Rectangle
+from src.shapes import Circle, Rectangle
 
 
 def find_pool(image: np.array, altitude: int, threshold: int = 110, verb=False) -> Rectangle:

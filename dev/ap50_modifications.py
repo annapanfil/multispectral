@@ -8,20 +8,8 @@ import torch
 import cv2
 import matplotlib.pyplot as plt
 
-from detection.yolo import read_ground_truth, show_gt_and_pred
+from train.yolo import read_ground_truth, show_gt_and_pred
 
-ds_path = "/home/anna/Datasets/created/pool-form1_pool-3-channels_random/"
-FULL_DS = False
-
-if FULL_DS:
-    #test whole val ds
-    yaml = f"{ds_path}/pool-form1_pool-3-channels_random.yaml"
-    split = "val"
-else: 
-    yaml =  "detection/data.yaml"
-    split = "example"
-
-images = [] # for showing them in the final image
 
 def is_inside(bb, bbs, idx_filter=None):
     """
@@ -163,60 +151,73 @@ class MyValidator(DetectionValidator):
         return img
 
 
+if __name__ == "__main__":
+    ds_path = "/home/anna/Datasets/created/pool-form1_pool-3-channels_random/"
+    FULL_DS = False
 
-# Load model
-model = YOLO("/home/anna/code/multispectral/src/detection/pool-form1_pool-3-channels_random_best.pt")
+    if FULL_DS:
+        #test whole val ds
+        yaml = f"{ds_path}/pool-form1_pool-3-channels_random.yaml"
+        split = "val"
+    else: 
+        yaml =  "detection/data.yaml"
+        split = "example"
 
-# get metrics
-results = model.val(data=yaml, validator=DetectionValidator)
-ap50_yolo = results.results_dict["metrics/mAP50(B)"]
-ap5095_yolo = results.results_dict['metrics/mAP50-95(B)']
+    images = [] # for showing them in the final image
 
-our_results = model.val(data=yaml, validator=MyValidator)
-ap50_our = our_results.results_dict["metrics/mAP50(B)"]
-ap5095_our = our_results.results_dict['metrics/mAP50-95(B)']
+    # Load model
+    model = YOLO("/home/anna/code/multispectral/src/detection/pool-form1_pool-3-channels_random_best.pt")
 
-plt.plot(np.linspace(50, 95, len(results.box.all_ap[0])), results.box.all_ap[0], color="red", 
-         label=f"original (AP50={ap50_yolo:.3f}, AP50-95={ap5095_yolo:.3f})")
-plt.plot(np.linspace(50, 95, len(our_results.box.all_ap[0])), our_results.box.all_ap[0], color="green", 
-         label=f"improved (AP50={ap50_our:.3f}, AP50-95={ap5095_our:.3f})")
-plt.xlabel("IoU Threshold (%)")
-plt.ylabel("AP")
-plt.title("AP vs IoU Threshold (utils/metrics.py/ap_per_class)")
-plt.legend()
-plt.show()
+    # get metrics
+    results = model.val(data=yaml, validator=DetectionValidator)
+    ap50_yolo = results.results_dict["metrics/mAP50(B)"]
+    ap5095_yolo = results.results_dict['metrics/mAP50-95(B)']
 
-print( "         |  AP50  | AP50-95")
-print( "---------------------------")
-print(f"Original | {ap50_yolo:.4f} | {ap5095_yolo:.4f}")
-print(f"Improved | {ap50_our:.4f} | {ap5095_our:.4f}")
+    our_results = model.val(data=yaml, validator=MyValidator)
+    ap50_our = our_results.results_dict["metrics/mAP50(B)"]
+    ap5095_our = our_results.results_dict['metrics/mAP50-95(B)']
 
-# show image
-n_cols = 6 if FULL_DS else 1
-n_rows = (len(images) + n_cols - 1) // n_cols
+    plt.plot(np.linspace(50, 95, len(results.box.all_ap[0])), results.box.all_ap[0], color="red", 
+            label=f"original (AP50={ap50_yolo:.3f}, AP50-95={ap5095_yolo:.3f})")
+    plt.plot(np.linspace(50, 95, len(our_results.box.all_ap[0])), our_results.box.all_ap[0], color="green", 
+            label=f"improved (AP50={ap50_our:.3f}, AP50-95={ap5095_our:.3f})")
+    plt.xlabel("IoU Threshold (%)")
+    plt.ylabel("AP")
+    plt.title("AP vs IoU Threshold (utils/metrics.py/ap_per_class)")
+    plt.legend()
+    plt.show()
 
-grid_img = None
-for i in range(n_rows):
-    row_images = images[i * n_cols:(i + 1) * n_cols]
-    if len(row_images) < n_cols:
-        row_images += [np.zeros_like(row_images[0])] * (n_cols - len(row_images)) # empty images
+    print( "         |  AP50  | AP50-95")
+    print( "---------------------------")
+    print(f"Original | {ap50_yolo:.4f} | {ap5095_yolo:.4f}")
+    print(f"Improved | {ap50_our:.4f} | {ap5095_our:.4f}")
 
-    row_img = cv2.hconcat([cv2.resize(img, (800, 608)) for img in row_images])
-    if grid_img is None:
-        grid_img = row_img
-    else:
-        grid_img = cv2.vconcat([grid_img, row_img])
+    # show image
+    n_cols = 6 if FULL_DS else 1
+    n_rows = (len(images) + n_cols - 1) // n_cols
 
-plt.imshow(grid_img)
-plt.axis('off')
-mng = plt.get_current_fig_manager()
-mng.full_screen_toggle()
+    grid_img = None
+    for i in range(n_rows):
+        row_images = images[i * n_cols:(i + 1) * n_cols]
+        if len(row_images) < n_cols:
+            row_images += [np.zeros_like(row_images[0])] * (n_cols - len(row_images)) # empty images
 
-legend_patches = [
-    patches.Patch(color='green', label='Ground truth'),
-    patches.Patch(color='blue', label='Prediction'),
-    patches.Patch(color='red', label='Matched GT'),
-    patches.Patch(color='pink', label='New match')
-]
-plt.legend(handles=legend_patches, loc='lower right')
-plt.show()
+        row_img = cv2.hconcat([cv2.resize(img, (800, 608)) for img in row_images])
+        if grid_img is None:
+            grid_img = row_img
+        else:
+            grid_img = cv2.vconcat([grid_img, row_img])
+
+    plt.imshow(grid_img)
+    plt.axis('off')
+    mng = plt.get_current_fig_manager()
+    mng.full_screen_toggle()
+
+    legend_patches = [
+        patches.Patch(color='green', label='Ground truth'),
+        patches.Patch(color='blue', label='Prediction'),
+        patches.Patch(color='red', label='Matched GT'),
+        patches.Patch(color='pink', label='New match')
+    ]
+    plt.legend(handles=legend_patches, loc='lower right')
+    plt.show()

@@ -6,8 +6,8 @@ import os
 
 import exiftool
 
-from load import load_aligned, load_not_aligned
-from gui import show_components_interactive
+from src.processing.load import load_aligned, load_not_aligned
+from dev.multispectral_img_gui import show_components_interactive
 
 def get_args():
     """Parse command line arguments."""

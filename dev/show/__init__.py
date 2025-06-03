@@ -1,0 +1,1 @@
+"""For displaying the maps and videos offline and images online."""

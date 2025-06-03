@@ -1,0 +1,1 @@
+"""Scripts for creating datasets and training YOLO models for multispectral images."""

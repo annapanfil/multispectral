@@ -5,7 +5,7 @@ import numpy as np
 from ultralytics import YOLO
 
 from src.shapes import Rectangle
-from src.utils import get_real_piles_size, greedy_grouping, prepare_image, time_decorator, get_piles_positions
+from src.utils import get_real_piles_size, greedy_grouping, prepare_image, time_decorator
 from src.processing.load import align_from_saved_matrices, get_irradiance, load_image_set
 from src.processing.consts import *
 
@@ -56,7 +56,6 @@ def main():
 
     # TODO: Get position in the world
     sizes = time_decorator(get_real_piles_size)(image.shape[:2], altitude - POOL_HEIGHT, CAM_HFOV, CAM_VFOV, merged_bbs)
-    positions = get_piles_positions(merged_bbs, altitude - POOL_HEIGHT)
 
     print("----\nWhole main took", time.time() - start, "s")
 
@@ -65,11 +64,10 @@ def main():
         plt.imshow(merged_img)
         plt.show()
 
-    for rect, size, pos in zip(merged_bbs, sizes, positions):
+    for rect, size, pos in zip(merged_bbs, sizes):
         rect.draw(image, color=(0, 255, 0), thickness=2)
         text = f"{size[0]*100:.0f}x{size[1]*100:.0f}" # cm
         cv2.putText(image, text, (rect.x_l, rect.y_b), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-        cv2.putText(image, str(pos), [int(x) for x in rect.center], cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
     plt.imshow(image)
     plt.show()

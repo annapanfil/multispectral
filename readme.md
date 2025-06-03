@@ -100,7 +100,7 @@ Dev directory contains different scripts and notebooks used for:
 ## Other tasks
 run the tests (only for index evaluation methods): `pytest`
 
-generate documentation (incomplete): `PYTHONPATH=src python -m pdoc detection -o docs -d google`
+generate documentation (a bit incomplete): from parent directory run `PYTHONPATH=./multispectral:$PYTHONPATH python -m pdoc multispectral -o multispectral/docs -d google`
 
 ## Requirements
 The script requires multiple libraries which can be found in `environment.yaml` file. Also the [micasense library](https://github.com/micasense/imageprocessing) should be downloaded to `libraries` directory. 
