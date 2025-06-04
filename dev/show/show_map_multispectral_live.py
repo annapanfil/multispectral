@@ -1,16 +1,3 @@
-# app.layout = html.Div([
-#         html.H3("SeaHawk", style={'textAlign': 'center', 'fontSize': '1.5em'}),
-#         dl.Map(center=map_start, zoom=18, id="map", style={'width': '100%', 'height': '500px'}),
-#         html.Div([
-#             html.Video(src=video1_path, controls=True, width="56%", autoPlay=False, loop=True, muted=True),
-#             html.Video(src=video2_path, controls=True, width="42%", autoPlay=False, loop=True, muted=True),
-#         ], style={'display': 'flex', 'alignItems': 'flex-start', 'justifyContent': 'space-between', 'marginTop': '20px'}),
-#         dcc.Interval(id="interval", interval=300, n_intervals=0),
-#         dcc.Store(id="path", data=[])
-#     ])
-
-
-
 import dash
 from dash import html, dcc
 import dash_leaflet as dl
@@ -36,16 +23,10 @@ ws_ip = "127.0.0.0"
 app.layout = html.Div([
     dcc.Store(id='gps_store'), 
     dcc.Interval(id='update', interval=1000, n_intervals=0),
-    html.H3("SeaBees", style={'textAlign': 'center', 'fontSize': '3em'}),
-    html.Div([
-        dl.Map(center=map_start, zoom=18, id="map", style={"height": "500px", "width": "50%"}),
-        html.Video(src="/assets/apads_2_litter.mp4", controls=True, loop=True, muted=True, style={"width": "50%", "marginLeft": "20px"})
-        ], style={'display': 'flex', 'justifyContent': 'center', 'gap': '20px'}),
-        html.Div([
-            html.Video(src="/assets/apads_seacat.mp4", controls=True, loop=True, muted=True, style={"width": "50%"})
-        ], style={'textAlign': 'center', 'marginTop': '20px'})
+    html.H3("SeaHawk", style={'textAlign': 'center', 'fontSize': '3em'}),
+    dl.Map(center=map_start, zoom=18, id="map", style={"height": "90%", "width": "100%"})
 
-])
+], style={"height": "100vh"})
 
 def handle_gps(msg):
     global latest_gps
