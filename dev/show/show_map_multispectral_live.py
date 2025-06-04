@@ -1,3 +1,6 @@
+import base64
+import cv2
+import numpy as np
 import dash
 from dash import html, dcc
 import dash_leaflet as dl
@@ -12,21 +15,32 @@ app = dash.Dash(__name__)
 latest_gps = None
 gps_path = []
 litter_gps = []
+latest_img = None
 map_start = [53.470129, 9.984008] # Hamburg drone starting point
 gps_topic = "/dji_osdk_ros/gps_position"
 gps_litter_topic = "/multispectral/pile_global_position"
+detection_image_topic = "/multispectral/detection_image"
 
 video1_path = "/assets/multispectral.mp4"
 video2_path = "/assets/hamburg_mapping.mp4"
 ws_ip = "127.0.0.0"
 
 app.layout = html.Div([
-    dcc.Store(id='gps_store'), 
     dcc.Interval(id='update', interval=1000, n_intervals=0),
-    html.H3("SeaHawk", style={'textAlign': 'center', 'fontSize': '3em'}),
-    dl.Map(center=map_start, zoom=18, id="map", style={"height": "90%", "width": "100%"})
+    # lewy panel z tytułem i mapą
+    html.Div([
+        html.H3("SeaHawk", style={'textAlign': 'center', 'fontSize': '3em', 'marginBottom': '20px'}),
+        dl.Map(center=map_start, zoom=18, id="map", style={"flex": "2", "marginRight": "20px"})
+    ], style={"display": "flex", "flexDirection": "column", "flex": "2"}),
 
-], style={"height": "100vh"})
+    # prawy panel z obrazkiem
+    html.Div([
+        html.H4("Last detection", style={"textAlign": "center"}),
+        html.Img(id='live_image', style={"width": "100%", "height": "auto", "objectFit": "contain"})
+    ], style={"flex": "1.5", "display": "flex", "flexDirection": "column", "justifyContent": "center"})
+], style={"display": "flex", "height": "100vh", "margin": "0", "padding": "0"})
+
+
 
 def handle_gps(msg):
     global latest_gps
@@ -35,6 +49,12 @@ def handle_gps(msg):
 def handle_litter_gps(msg):
     global litter_gps
     litter_gps.append([msg['latitude'], msg['longitude']])
+
+def handle_image(msg):
+    global latest_img
+    img_bytes = base64.b64decode(msg["data"])
+    img = np.frombuffer(img_bytes, dtype=np.uint8).reshape((msg["height"], msg["width"], -1))
+    latest_img = img
 
 
 def make_listener(url, topic, handler):
@@ -50,6 +70,7 @@ def make_listener(url, topic, handler):
 
 make_listener(f"ws://{ws_ip}:9091", gps_topic, handle_gps)
 make_listener(f"ws://{ws_ip}:9091", gps_litter_topic, handle_litter_gps)
+make_listener(f"ws://{ws_ip}:9091", detection_image_topic, handle_image)
 
 @app.callback(
     Output("map", "children"),
@@ -68,6 +89,21 @@ def update_map(_):
             children.append(dl.CircleMarker(center=litter, radius=5, color="red",  fillColor="red", fillOpacity=1))
 
     return children
+
+@app.callback(
+    Output('live_image', 'src'),
+    Input('update', 'n_intervals')
+)
+def update_image(_):
+    global latest_img
+    if latest_img is not None:
+        img = latest_img
+    else:
+        img = np.zeros((100, 100, 3), dtype=np.uint8)
+    
+    _, buffer = cv2.imencode('.jpg', img)
+    encoded = base64.b64encode(buffer).decode('utf-8')
+    return "data:image/jpeg;base64," + encoded
 
 if __name__ == "__main__":
     app.run(debug=True)
