@@ -137,8 +137,9 @@ class CameraModel:
         Rz = np.array([[math.cos(yaw), -1 * math.sin(yaw), 0], [math.sin(yaw), math.cos(yaw), 0], [0, 0, 1]])
         return np.matmul(Rz, np.matmul(Ry, Rx))
     
+
 class ObjectGlobalPositionPublisher:
-    def __init__(self, camera_model, geo_ref_pos, topics, height_offset = 0.0):
+    def __init__(self, camera_model, geo_ref_pos, topics, height_offset = 0.0, publish_constantly = False):
         '''
             Args:
                 topics = {
@@ -149,12 +150,14 @@ class ObjectGlobalPositionPublisher:
                 camera_model - CameraModel object to convert from pixel to drone relative coordinates
                 rov_px_topic - topic for listening for pixel coordinates of the rov (PointStamped)
                 geo_reference_pos - initial drone position GPS coordinates (lat,long,alt)
+                publish_constantly - if true, will publish object position constantly, otherwise only when px_cord message arrives
         '''
         self.geo_reference_pos = geo_ref_pos
         self.camera_model = camera_model
         self.height_offset = height_offset
         #Messages, subs and pubs
         self.msgs = {}
+
         #Subs
         self.px_cord_sub = rospy.Subscriber(topics["px_cord"][0], topics["px_cord"][1], callback=self._px_cord_callback) # Pixel coordinates of object
         self.gps_sub = rospy.Subscriber(topics["gps"][0], topics["gps"][1], callback=self._gps_callback)
@@ -171,6 +174,8 @@ class ObjectGlobalPositionPublisher:
         self.global_pos_pub = rospy.Publisher("/multispectral/pile_global_position", NavSatFix,queue_size=30) # GPS coordinates of object
         self.world_enu_pub = rospy.Publisher("/multispectral/pile_enu_position", PointStamped, queue_size=30) # ENU positions of object with respect to reference point
         self._ned_to_enu = lambda ned: (ned[1], ned[0], -ned[2]) # converts ned to enu vector
+        self.publish_constantly = publish_constantly # if true, will publish object position constantly, otherwise only when px_cord message arrives
+
         #Initialize geo system
         self.gps_utils = gps_utils.GPS_utils()
         lat0, lon0, alt0 = self.geo_reference_pos
@@ -226,6 +231,8 @@ class ObjectGlobalPositionPublisher:
 
     def _get_obj_px_position(self):
         x,y = self.msgs["px_cord"].point.x, self.msgs["px_cord"].point.y # Real stuff for OBJECT TRACKING
+        if not self.publish_constantly:
+            self.msgs.pop("px_cord", None) # Remove message from dict
         return (x,y)
 
     def _px_cord_callback(self, msg):
@@ -250,21 +257,21 @@ class ObjectGlobalPositionPublisher:
     def _gimbal_callback(self, msg):
         self.msgs["gimbal"] = msg
         
-    def _pub_gps_position(self, pub, gps_pos):
+    def _pub_gps_position(self, pub, gps_pos, stamp):
         object_lat, object_lon, object_alt = gps_pos
         sat_msg = NavSatFix()
-        sat_msg.header.stamp = self.msgs["px_cord"].header.stamp
+        sat_msg.header.stamp = stamp
         sat_msg.latitude = object_lat
         sat_msg.longitude = object_lon
         sat_msg.altitude = object_alt
         sat_msg.position_covariance_type = 0 #UNKNOWN
         pub.publish(sat_msg)
     
-    def _pub_world_enu_pos(self, pub, enu_pos):
+    def _pub_world_enu_pos(self, pub, enu_pos, stamp):
         object_e, object_n, object_u = enu_pos
         point_msg = PointStamped()
         point_msg.header.frame_id = "world_enu"
-        point_msg.header.stamp = self.msgs["px_cord"].header.stamp
+        point_msg.header.stamp = stamp
         point_msg.point.x = object_e
         point_msg.point.y = object_n
         point_msg.point.z = object_u
@@ -288,14 +295,15 @@ class ObjectGlobalPositionPublisher:
 
     def start_publishing(self):
         rate_wait = rospy.Rate(5)
-        while not self._msgs_arrived():
-            print(self.msgs.keys())
-            if rospy.is_shutdown():
-                sys.exit()
-            rate_wait.sleep()
-            print("Waiting for messages")
         rate = rospy.Rate(30)
         while not rospy.is_shutdown():
+            while not self._msgs_arrived():
+                print(self.msgs.keys())
+                if rospy.is_shutdown():
+                    sys.exit()
+                rate_wait.sleep()
+                print("Waiting for messages")
+            stamp = self.msgs["px_cord"].header.stamp
             camera_pos_enu = self._get_camera_position_world_enu()
             obj_px_position = self._get_obj_px_position()
             drone_orientation_enu = (self.msgs["attitude"].vector.x, self.msgs["attitude"].vector.y, self.msgs["attitude"].vector.z)
@@ -304,14 +312,13 @@ class ObjectGlobalPositionPublisher:
             obj_cam = self.camera_model.get_obj_camera(obj_px_position, camera_orientation_ned, height = camera_pos_enu[2][0], height_offset=self.height_offset)#
             R_camera_to_enu = self.camera_model._camera_to_enu(drone_orientation_enu)
             obj_enu = np.matmul(R_camera_to_enu, obj_cam) # object in ENU 
-            #print(f"{obj_enu=}")
             #World coordinates (ENU)
             obj_enu = camera_pos_enu + obj_enu
             #Geodetic coordinates (lat,lon,alt)
             obj_geo = self.gps_utils.enu2geo(obj_enu[0],obj_enu[1],obj_enu[2])
             #Publish coordinates
-            self._pub_world_enu_pos(self.world_enu_pub, obj_enu)
-            self._pub_gps_position(self.global_pos_pub, obj_geo)
+            self._pub_world_enu_pos(self.world_enu_pub, obj_enu, stamp)
+            self._pub_gps_position(self.global_pos_pub, obj_geo, stamp)
             print(f"ENU position: {', '.join([str(x) for x in obj_enu])}\n GPS postion: {', '.join([str(x) for x in obj_geo])}")
             rate.sleep()
 
