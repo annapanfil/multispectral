@@ -45,8 +45,21 @@ python3 -m src.global_position_publisher    # determining GPS and ENU position
 
 Both nodes communicate via TCP connection on port 5000 of the ground computer. The IP address of the ground node must be changed in the `main_drone.py` file.
 
-Optionally to see the detection image run `python3 -m detection.image_subscriber`.
+### Web interface
+The web interface shows the map with a drone path and litter position and last detection image with bounding boxes around the litter.
+It may be useful for final visualisation as well as debugging. 
 
+To launch the interface create websocket and run the app:
+```
+roslaunch rosbridge_server rosbridge_websocket.launch port:=9091
+python3 -m dev.show.show_map_multispectral_live
+```
+
+![GUI example video](docs/ms_gui.mp4)
+
+If you want to draw the bounding boxes manually, use `python3 -m dev.show.topic_image_viewer`. There you also see last image with the detection. You can draw your own bounding box and send it to rostopics by pressing enter. Press q to quit the program.
+
+![Image viewer example video](docs/image_viewer.mp4)
 
 ### Offline version
 If the processing doesn't need to be done online run:

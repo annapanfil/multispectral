@@ -82,11 +82,11 @@ def update_map(_):
 
     if latest_gps:
         gps_path.append([latest_gps["latitude"], latest_gps["longitude"]])
-        children.append(dl.Polyline(positions=gps_path, color="green"))
-        children.append(dl.CircleMarker(center=gps_path[-1], radius=5, color="green",  fillColor="green", fillOpacity=1))
+        children.append(dl.Polyline(positions=gps_path, color="yellow"))
+        children.append(dl.CircleMarker(center=gps_path[-1], radius=5, color="yellow",  fillColor="yellow", fillOpacity=1))
         
         for litter in litter_gps:
-            children.append(dl.CircleMarker(center=litter, radius=5, color="red",  fillColor="red", fillOpacity=1))
+            children.append(dl.CircleMarker(center=litter, radius=2, color="red",  fillColor="red", fillOpacity=1))
 
     return children
 
