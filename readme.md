@@ -1,4 +1,6 @@
-# Detection of surface litter with multispectral camera
+# Detection of sea surface litter with multispectral camera
+
+Part of the [SeaClear 2.0](https://www.seaclear2.eu/) EU project. **Detection of the surface litter** with DJI Matrice 300 equipped with Micasense RedEdge-P **multispectral camera**. The detection is done with **YOLOv10n** model, fine-tuned for multispectral images with **custom index**. Communication is done via **ROS** topics (ROS1) and optionally **TCP** sockets. The project includes web **GUI** in Dash. 
 
 ## Main script (src/)
 The main file is triggering the multispectral camera, processing and returning the GPS coordinates of
@@ -112,9 +114,10 @@ Dev directory contains different scripts and notebooks used for:
 
 
 ## Other tasks
-run the tests (only for index evaluation methods): `pytest`
 
-generate documentation (a bit incomplete): from parent directory run `PYTHONPATH=./multispectral:$PYTHONPATH python -m pdoc multispectral -o multispectral/docs -d google`
+Generate documentation (a bit incomplete): from parent directory run `PYTHONPATH=./multispectral:$PYTHONPATH python -m pdoc multispectral -o multispectral/docs -d google`
+
+Run the tests (only for index evaluation methods): `pytest`
 
 ## Requirements
 The script requires multiple libraries which can be found in `environment.yaml` file. Also the [micasense library](https://github.com/micasense/imageprocessing) should be downloaded to `libraries` directory. 
@@ -124,3 +127,6 @@ For the imports to work PATH should contain the `multispectral/src` folder and P
 Also remember to correctly set ROS_MASTER_URI and ROS_IP and run roscore.
 
 The scripts are currently written for ROS1.
+
+---
+© Anna Panfil LARIAT 2025
