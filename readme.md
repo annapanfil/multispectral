@@ -55,11 +55,12 @@ roslaunch rosbridge_server rosbridge_websocket.launch port:=9091
 python3 -m dev.show.show_map_multispectral_live
 ```
 
-![GUI example video](docs/ms_gui.mp4)
+https://github.com/user-attachments/assets/e122bb07-5755-43c0-8f5e-548f5d57f4d2
 
 If you want to draw the bounding boxes manually, use `python3 -m dev.show.topic_image_viewer`. There you also see last image with the detection. You can draw your own bounding box and send it to rostopics by pressing enter. Press q to quit the program.
 
-![Image viewer example video](docs/image_viewer.mp4)
+https://github.com/user-attachments/assets/d61bcfcc-012b-44f5-a5d7-6a78a1f950e0
+
 
 ### Offline version
 If the processing doesn't need to be done online run:
