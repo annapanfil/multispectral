@@ -2,6 +2,24 @@ import numpy as np
 import micasense.imageutils as imageutils
 from src.processing.consts import OPERATIONS, CHANNELS
 
+def apply_formula(im_aligned: str, formula: str, is_complex: bool = False) -> np.array:
+    """
+    Apply formula to the image.
+    Args:
+        img_aligned (np.array): Multispectral image to apply the formula to.
+        formula (str): Formula to apply to the image.
+        is_complex (bool, optional): True means the formula is more complex and the image is normalized to [0, 255] before applying the formula.
+
+    Returns:
+        np.array: Image with the formula applied.
+    """
+
+    image = get_custom_index(formula, im_aligned, is_complex)
+    image = (image * 255).astype(np.uint8)
+
+    return image
+
+
 def evaluate_postfix(expression: str, variables: dict) -> np.array:
     """
     Evaluate a prefix expression.

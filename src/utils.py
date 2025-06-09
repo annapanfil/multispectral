@@ -5,7 +5,8 @@ import cv2
 import numpy as np
 from src.shapes import Rectangle
 from src.processing.consts import CHANNELS, CAM_HFOV, CAM_VFOV
-from train.dataset_creation.create_dataset import apply_formula
+from src.processing.evaluate_index import apply_formula
+
 
 def prepare_image(img_aligned: np.array, channels: List, is_complex: bool, new_size: Tuple[int, int]) -> np.array:
     """ Get the correct channels for prediction and resize the image.
