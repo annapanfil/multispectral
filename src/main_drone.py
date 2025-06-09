@@ -9,8 +9,8 @@ import subprocess
 import time
 import numpy as np
 import requests
-import rospy
-import zstandard as zstd
+# import rospy
+# import zstandard as zstd
 
 DEBUG = True # local testing (without camera)
 
@@ -33,17 +33,18 @@ def get_image_from_camera(url, params):
         # get image from camera
         response = response.json()
         output_paths = []
-        for ch, path in response.get("raw_cache_path").items()[:-1]: # no panchromatic
+        for ch, path in list(response.get("raw_cache_path").items())[:-1]: # no panchromatic
             photo_nr = response.get("raw_storage_path").get(ch).split("/")[4]
             photo_url = "http://192.168.1.83" + path
             img_response = requests.get(photo_url)
 
-            output_dir = ("/home/dji/Documents/images/")
+            output_dir = (f"{DATASET_BASE_PATH}/raw_images/temp")
             output_path = save_image(output_dir, img_response, photo_nr, ch)
             output_paths.append(output_path)
         return output_paths
     else:
-        rospy.logwarn("Couldn't capture image ({})".format(response.json()))
+        # rospy.logwarn("Couldn't capture image ({})".format(response.json()))
+        print("Couldn't capture image ({})".format(response.json()))
         return None
 
 

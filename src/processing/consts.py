@@ -38,5 +38,5 @@ CAMERA_MATRIX = [[     1575.3,           0,      714.41],
 DISTORTION_COEFFS = [   -0.08933,     0.11349, -0.00045258,  0.00056019,   0.0085821] 
 """Distortion coefficients for the MicaSense RedEdge camera (for channel 0). In order: k1, k2, p1, p2, k3"""
 
-DATASET_BASE_PATH = "/home/anna/Datasets"
+DATASET_BASE_PATH = "/home/lariat/images/"
 """Base path for datasets. It assumes it hase 'raw_images', 'for_annotation' and 'annotated' subfolders with images. Creates the datasets for yolo training in 'created' directory."""

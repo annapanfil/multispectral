@@ -2,15 +2,15 @@ from pathlib import Path
 import subprocess
 import time
 import click
-import rospy
-from geometry_msgs.msg import PointStamped
-from sensor_msgs.msg import Image
+# import rospy
+# from geometry_msgs.msg import PointStamped
+# from sensor_msgs.msg import Image
 import exiftool
 from ultralytics import YOLO
 
 from src.processing.consts import DATASET_BASE_PATH
 from src.main_drone import get_image_from_camera
-from src.main_ground import send_outcomes
+# from src.main_ground import send_outcomes
 
 import micasense.capture as capture
 from src.processing.load import align_from_saved_matrices, find_images, get_irradiance, load_all_warp_matrices
@@ -29,8 +29,9 @@ def position_callback(msg):
 @click.option("--debug", '-d', is_flag=True, default=False, help="Run in debug mode with local images")
 def main(debug):
     """Main function to capture images from UAV multispectral camera and detect litter."""
-    rospy.init_node("UAV_multispectral_detector")
-    rospy.loginfo("Node has been started")
+    # rospy.init_node("UAV_multispectral_detector")
+    # rospy.loginfo("Node has been started")
+    print("Starting UAV multispectral litter detection...")
 
     ### CONFIGURATION
     formula = "(N - (E - N))"
@@ -39,22 +40,23 @@ def main(debug):
     new_image_size = (800, 608)
     original_image_size = (1456, 1088)
 
-    warp_matrices_dir = f"{DATASET_BASE_PATH}/annotated/warp_matrices"
+    warp_matrices_dir = f"{DATASET_BASE_PATH}/warp_matrices"
     model_path = "models/sea-form8_sea_aug-random_best.pt"
     panel_path = f"{DATASET_BASE_PATH}/raw_images/temp_panel" # here is saved the panel image when src.get_panel is used
     panel_nr = "0000"
 
     ### INITIALIZATION
     times = []
-    position_sub = rospy.Subscriber("/dji_osdk_ros/local_position", PointStamped, callback=position_callback)   
+    # position_sub = rospy.Subscriber("/dji_osdk_ros/local_position", PointStamped, callback=position_callback)   
 
     warp_matrices = load_all_warp_matrices(warp_matrices_dir)
     panel_names = find_images(Path(panel_path), panel_nr, panel=True, no_panchromatic=True)
     panel_capt = capture.Capture.from_filelist(panel_names)
     
-    pos_pixel_pub = rospy.Publisher("/multispectral/pile_pixel_position", PointStamped, queue_size=10)
-    image_pub = rospy.Publisher("/multispectral/detection_image", Image, queue_size=10)
+    # pos_pixel_pub = rospy.Publisher("/multispectral/pile_pixel_position", PointStamped, queue_size=10)
+    # image_pub = rospy.Publisher("/multispectral/detection_image", Image, queue_size=10)
 
+    print("Loading model...")
     model = YOLO(model_path)
     model.fuse() # Fuse Conv+BN layers
     model.half()
@@ -68,7 +70,8 @@ def main(debug):
         }
 
         # TEST CAMERA CONNECTION
-        rospy.loginfo("Testing camera connection...")
+        print("Testing camera connection...")
+        # rospy.loginfo("Testing camera connection...")
         try:
             output = subprocess.check_output(["ping", "-c", "1", "192.168.1.83"], stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError:
@@ -80,10 +83,12 @@ def main(debug):
         TOPIC_NAME = "/camera/trigger"
 
     ### MAIN LOOP
-    while not rospy.is_shutdown():
+    while True:
+    # while not rospy.is_shutdown():
         start = time.time()
 
-        rospy.loginfo("Capturing photo...")
+        # rospy.loginfo("Capturing photo...")
+        print("Capturing photo...")
         altitude = current_altitude
         if not debug:
             # get images from camera
@@ -101,7 +106,8 @@ def main(debug):
         group_key = paths[0].rsplit("/", 1)[1].rsplit("_", 1)[0] # for logging purposes
 
         # Preprocessing
-        rospy.loginfo(f"Processing {group_key} with altitude {altitude:.0f} m")
+        print(f"Processing {group_key} with altitude {altitude:.0f} m")
+        # rospy.loginfo(f"Processing {group_key} with altitude {altitude:.0f} m")
         
         img_capt = capture.Capture.from_filelist(paths)
         img_type = get_irradiance(img_capt, panel_capt, display=False, vignetting=False)
@@ -120,11 +126,13 @@ def main(debug):
         for rect in merged_bbs:
             rect.draw(image, color=(0, 255, 0), thickness=2)
             
+        print(f"Found {len(merged_bbs)} litter piles in {group_key}")
         # Sending outcomes
-        send_outcomes(merged_bbs, image, group_key, image_pub, pos_pixel_pub)
+        # send_outcomes(merged_bbs, image, group_key, image_pub, pos_pixel_pub)
 
         end = time.time()
-        rospy.loginfo(f"Time for this photo: {end - start:.2f} seconds")
+        print(f"Time for this photo: {end - start:.2f} seconds")
+        # rospy.loginfo(f"Time for this photo: {end - start:.2f} seconds")
         times.append(end - start)
     
     if len(times) != 0:
