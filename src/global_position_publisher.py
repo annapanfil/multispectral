@@ -42,14 +42,14 @@ class CameraModel:
 
     def _camera_to_enu(self, drone_orientation_enu):
         '''
-            Transforms camera (Z forward looking) to NED coordinates
+            Transforms camera (Z forward looking) to ENU coordinates
             Args : 
                 roll,pitch,yaw - drone_orientation in ENU coordinate frame (rpy) 
         '''
         roll,pitch,yaw = drone_orientation_enu
         drone_to_enu = self.get_rotation_matrix(roll,pitch,yaw) # ENU CF -> Drone FLU CF
-        cam_to_drone = self.get_rotation_matrix(-90,0,-90) # FLU CF -> cam CF (z forward)
-        
+        cam_to_drone = self.get_rotation_matrix(-180,0,-90) # FLU CF -> cam CF (z forward)
+        roll,pitch,yaw = euler_from_matrix(np.matmul(drone_to_enu, cam_to_drone), "sxyz") # check if the rotation is correct
         return np.matmul(drone_to_enu, cam_to_drone)
 
     def _ned_to_camera(self, roll,pitch,yaw):
@@ -282,13 +282,14 @@ class ObjectGlobalPositionPublisher:
             Calculates camera position in world ENU (based on GPS world origin
             set in gps_utils.enu2geo module and drone GPS position )
         '''
-        drone_pos = self._get_drone_pos_enu() 
+        drone_pos = self._get_drone_pos_enu()
         e,n,u = drone_pos[0], drone_pos[1], drone_pos[2]
         drone_pos = np.array((drone_pos[0], drone_pos[1], drone_pos[2]))
         camera_pos = drone_pos + self._get_camera_offset()
         camera_pos_geo = self.gps_utils.enu2geo(camera_pos[0],camera_pos[1],camera_pos[2])
         camera_pos = np.array(camera_pos).reshape((3,1))
         if debug:
+            print(f"Drone position ENU world (x,y,z): ({drone_pos[0]}, {drone_pos[1]}, {drone_pos[2]})")
             print("Camera position ENU world (x,y,z): ({}, {}, {})".format(camera_pos[0],camera_pos[1],camera_pos[2]))
             print("Camera position GEO (lat,lon,height): ({}, {}, {})".format(camera_pos_geo[0],camera_pos_geo[1],camera_pos_geo[2]))
         return camera_pos
@@ -296,13 +297,19 @@ class ObjectGlobalPositionPublisher:
     def start_publishing(self):
         rate_wait = rospy.Rate(5)
         rate = rospy.Rate(30)
+        while not self._msgs_arrived():
+            # print(self.msgs.keys())
+            if rospy.is_shutdown():
+                sys.exit()
+            rate_wait.sleep()
+            print("Waiting for messages. Have: {}".format(self.msgs.keys()))
+
         while not rospy.is_shutdown():
             while not self._msgs_arrived():
-                print(self.msgs.keys())
                 if rospy.is_shutdown():
                     sys.exit()
                 rate_wait.sleep()
-                print("Waiting for messages")
+                # print("Waiting for messages. Have: {}".format(self.msgs.keys()))
             stamp = self.msgs["px_cord"].header.stamp
             camera_pos_enu = self._get_camera_position_world_enu()
             obj_px_position = self._get_obj_px_position()
@@ -319,13 +326,14 @@ class ObjectGlobalPositionPublisher:
             #Publish coordinates
             self._pub_world_enu_pos(self.world_enu_pub, obj_enu, stamp)
             self._pub_gps_position(self.global_pos_pub, obj_geo, stamp)
-            print(f"ENU position: {', '.join([str(x) for x in obj_enu])}\n GPS postion: {', '.join([str(x) for x in obj_geo])}")
+            print(f"ENU position: {', '.join([str(x) for x in obj_enu])}\nGPS postion: {', '.join([str(x) for x in obj_geo])}")
+            print(f"Waiting for next px_cord message")
             rate.sleep()
 
 if __name__=="__main__":
     rospy.init_node("object_global_position_publisher")
     camera_model = CameraModel(CAMERA_MATRIX, DISTORTION_COEFFS)
-    geo_ref_hamburg = (53.5249978583, 10.00368754, 0.0) # Hamburg experiments reference point
+    geo_ref_hamburg = (53.470132, 9.984003, 0.0) # Hamburg experiments reference point
     # geo_ref_dubrovnik = (42.66439066892307, 18.071053781363926, 0.0) # Dubrovnik experiments
     height_offset = 2 # from sea level to drone starting point (in meters)
 
