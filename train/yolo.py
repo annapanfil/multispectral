@@ -24,6 +24,7 @@ def read_ground_truth(results):
      return gt_boxes
 
 def show_gt_and_pred(results, gt_boxes, additional_boxes = [], n_cols=4):
+     if additional_boxes == []: additional_boxes = [[] for _ in range(len(results))]
      temp_images = []
      n_rows = (len(results) + n_cols - 1) // n_cols
 
@@ -46,6 +47,8 @@ def show_gt_and_pred(results, gt_boxes, additional_boxes = [], n_cols=4):
      grid_img = None
      for i in range(n_rows):
           row_images = temp_images[i * n_cols:(i + 1) * n_cols]
+          if not row_images:
+               continue
           if len(row_images) < n_cols:
                row_images += [np.zeros_like(row_images[0])] * (n_cols - len(row_images)) # empty images
 
