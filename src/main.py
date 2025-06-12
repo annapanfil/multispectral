@@ -100,7 +100,10 @@ def main(debug):
         altitude = current_altitude
         if not debug:
             # get images from camera
+            s = time.time()
             paths = get_image_from_camera(url, params)
+            e = time.time()
+            print(f"Time of getting image from camera: {e - s:.2f} seconds")
         else:
             storage_path = f"/home/lariat/images/img_to_simple_test/IMG_08{i}_1.tif"
             paths = [storage_path.replace("_1.tif", f"_{ch}.tif") for ch in range(1, 6)]
@@ -120,10 +123,17 @@ def main(debug):
         # print(f"Processing {group_key} with altitude {altitude:.0f} m")
         # rospy.loginfo(f"Processing {group_key} with altitude {altitude:.0f} m")
         
+        s = time.time()
         img_capt = capture.Capture.from_filelist(paths)
+        e = time.time()
+        print(f"Time of reading image from file: {e - s:.2f} seconds")
+
+        s = time.time()
         img_type = get_irradiance(img_capt, panel_capt, display=False, vignetting=False)
         img_aligned = align_from_saved_matrices(img_capt, img_type, warp_matrices, altitude, allow_closest=True, reference_band=0)
         image = prepare_image(img_aligned, channels, is_complex, new_image_size)
+        e = time.time()
+        print(f"Time of preprocessing (irradiance, align, prepare img): {e - s:.2f} seconds")
 
         input = np.transpose(image, (2, 1, 0))
         # Add batch dimension: (1, C, H, W)
@@ -132,7 +142,10 @@ def main(debug):
         # Detection
         print("Detecting litter...")
         # results = model.predict(source=image, save=False, verbose=False)
+        s = time.time()
         results = session.run(None, {input_name: input})
+        e = time.time()
+        print(f"Time of model detection: {e - s:.2f} seconds")
 
         bbs = []
         for pred_bbs in results[0]:
@@ -150,7 +163,10 @@ def main(debug):
 
         # Merging
         print("Merging piles...")
+        s = time.time()
         merged_bbs, _, _ = greedy_grouping(pred_bbs, image.shape[:2], resize_factor=1.5, visualize=False)
+        e = time.time()
+        print(f"Time of merging piles: {e - s:.2f} seconds")
 
         print(merged_bbs)
         image = image * 255.0  # Convert to uint8
