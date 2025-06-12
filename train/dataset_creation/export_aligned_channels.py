@@ -46,16 +46,16 @@ def main(cfg):
             os.makedirs(path)
 
         for i in range(0, im_aligned.shape[2]):
-            save_image(imageutils.normalize(im_aligned[:,:,i]), f"{path}/{image_nr}_{altitude}_ch{i}.tif")
+            save_image(imageutils.normalize(im_aligned[:,:,i]), f"{path}/{image_nr}_{altitude}_ch{i}.tif", gray=True)
 
         RGB_image = get_components_view(im_aligned, (2,1,0))
-        save_image(RGB_image, f"{path}/{image_nr}_{altitude}_RGB.png", bgr=True)
+        save_image(RGB_image, f"{path}/{image_nr}_{altitude}_RGB.png")
 
         other_channels_image = get_components_view(im_aligned, (2,3,4))
         save_image(other_channels_image, f"{path}/{image_nr}_{altitude}_234.png")
 
         meanRE_image = get_custom_index("0.5 * (E-G)/(E+G) + 0.5 * (E-B)/(E+B)", im_aligned)
-        save_image(meanRE_image, f"{path}/{image_nr}_{altitude}_meanRE.png")
+        save_image(meanRE_image, f"{path}/{image_nr}_{altitude}_meanRE.png", gray=True)
         
 
 if __name__ == "__main__":

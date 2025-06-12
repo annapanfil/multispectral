@@ -55,7 +55,7 @@ def load_not_aligned(image_dir: str, image_nr: str, panel_image_nr: int,
 
 def load_aligned(image_path: str, image_number: str) -> np.ndarray:
     """
-    Loads and aligns a set of multispectral images from a specified directory.
+    Loads already aligned set of multispectral images from a specified directory.
     Args:
         image_path (str): Path to the folder containing the images.
         image_number (str): Number of the capture to be displayed in format like: 0024 or part of image name without the channel.

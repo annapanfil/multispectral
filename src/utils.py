@@ -6,6 +6,7 @@ import numpy as np
 from src.shapes import Rectangle
 from src.processing.consts import CHANNELS, CAM_HFOV, CAM_VFOV
 from src.processing.evaluate_index import apply_formula
+import micasense.imageutils as imageutils
 
 
 def prepare_image(img_aligned: np.array, channels: List, is_complex: bool, new_size: Tuple[int, int]) -> np.array:
@@ -20,11 +21,10 @@ def prepare_image(img_aligned: np.array, channels: List, is_complex: bool, new_s
     """
     # normalize to [0, 255]
     for i in range(0, img_aligned.shape[2]):
-        img_aligned[:, :, i] = (img_aligned[:, :, i] - np.min(img_aligned[:, :, i])) / (np.max(img_aligned[:, :, i]) - np.min(img_aligned[:, :, i])) * 255
+        img_aligned[:, :, i] = imageutils.normalize(img_aligned[:,:,i]) * 255
 
     height, width = img_aligned.shape[:2]
 
-    
     image = np.zeros((height, width, len(channels)))
 
     for i, channel in enumerate(channels):
