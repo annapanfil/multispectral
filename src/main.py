@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
+
+# import rawpy
+import cv2
 from pathlib import Path
 import subprocess
 import time
@@ -18,6 +24,8 @@ from src.processing.load import align_from_saved_matrices, find_images, get_irra
 from src.shapes import Rectangle
 from src.utils import greedy_grouping, prepare_image
 import gc
+import shutil
+import os
 
 current_altitude = 15
 
@@ -33,6 +41,10 @@ def main(debug):
     # rospy.init_node("UAV_multispectral_detector")
     # rospy.loginfo("Node has been started")
     print("Starting UAV multispectral litter detection...")
+    
+    cv2.setUseOptimized(True)
+    cv2.setNumThreads(4)  # Use all 4 CPUs
+
 
     ### CONFIGURATION
     formula = "(N - (E - N))"
@@ -54,6 +66,14 @@ def main(debug):
     warp_matrices = load_all_warp_matrices(warp_matrices_dir)
     panel_names = find_images(Path(panel_path), panel_nr, panel=True, no_panchromatic=True)
     panel_capt = capture.Capture.from_filelist(panel_names)
+
+    if (albedo := panel_capt.panel_albedo()) is not None:
+        panel_reflectance_by_band = albedo
+    else:
+        panel_reflectance_by_band = [0.49, 0.49, 0.49, 0.49, 0.49] #RedEdge band_index order
+    
+    panel_irradiance = panel_capt.panel_irradiance(panel_reflectance_by_band)
+    
     
     # pos_pixel_pub = rospy.Publisher("/multispectral/pile_pixel_position", PointStamped, queue_size=10)
     # image_pub = rospy.Publisher("/multispectral/detection_image", Image, queue_size=10)
@@ -71,8 +91,11 @@ def main(debug):
     if not debug:
         url = "http://192.168.1.83/capture"
         params = {
-            "block": "true",
-            "cache_jpg": "31"
+            'block': 'true',
+            'cache_raw': 31,   # All 5 bands (binary 11111)
+            'store_capture': 'false',  # Skip SD card write
+            'preview': 'false',
+            'cache_jpeg': 0
         }
 
         # TEST CAMERA CONNECTION
@@ -91,7 +114,7 @@ def main(debug):
 
     ### MAIN LOOP
     # while True:
-    for i in range(59, 74):
+    for _ in range(20):
     # while not rospy.is_shutdown():
         start = time.time()
 
@@ -124,16 +147,24 @@ def main(debug):
         # rospy.loginfo(f"Processing {group_key} with altitude {altitude:.0f} m")
         
         s = time.time()
+        print(f"{paths=}")
         img_capt = capture.Capture.from_filelist(paths)
+        print(f"{img_capt=}")
         e = time.time()
         print(f"Time of reading image from file: {e - s:.2f} seconds")
 
         s = time.time()
-        img_type = get_irradiance(img_capt, panel_capt, display=False, vignetting=False)
+        img_type = get_irradiance(img_capt, panel_capt, panel_irradiance, display=False, vignetting=False)
+        e = time.time()
+        print(f"Time of getting irradiance: {e - s:.2f} seconds")
+        s = time.time()
         img_aligned = align_from_saved_matrices(img_capt, img_type, warp_matrices, altitude, allow_closest=True, reference_band=0)
+        e = time.time()
+        print(f"Time of aligning images: {e - s:.2f} seconds")
+        s = time.time()
         image = prepare_image(img_aligned, channels, is_complex, new_image_size)
         e = time.time()
-        print(f"Time of preprocessing (irradiance, align, prepare img): {e - s:.2f} seconds")
+        print(f"Time of preparing image: {e - s:.2f} seconds")
 
         input = np.transpose(image, (2, 1, 0))
         # Add batch dimension: (1, C, H, W)
@@ -174,8 +205,7 @@ def main(debug):
         for rect in merged_bbs:
             rect.draw(image, color=(0, 255, 0), thickness=2)
         
-        import cv2
-        cv2.imwrite(f"/home/lariat/images/preds/pred{i}.jpg", image)
+        cv2.imwrite(f"/home/lariat/images/preds/photo.jpg", image)
 
         # print(f"Found {len(merged_bbs)} litter piles in {group_key}")
         # Sending outcomes
@@ -186,21 +216,19 @@ def main(debug):
         # rospy.loginfo(f"Time for this photo: {end - start:.2f} seconds")
         times.append(end - start)
         
-        del img_capt
-        del img_aligned
-        del image
-        del pred_bbs
-        del merged_bbs
-        del results
-        del input
-        del bbs
+
+        # Cleanup
+        temp_dir = "/dev/shm/temp_images"
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        del img_capt,  img_aligned, image, pred_bbs, merged_bbs, results, input, bbs
         gc.collect()  # import gc
 
     
     if len(times) != 0:
         print("TIME STATISTICS:")
         print("--------------------")
-        print("min: {}, max: {}, avg: {}".format(min(times), max(times), sum(times)/len(times)))
+        print("min: {}, max: {}, avg: {}".format(min(times[1:]), max(times[1:]), sum(times[1:])/len(times[1:])))
     else:
         print("No images captured, time statistics not available.")
 

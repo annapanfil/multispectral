@@ -180,7 +180,7 @@ def load_image_set(
     
     return img_capt, panel_capt
 
-def get_irradiance(img_capt, panel_capt, display=False, vignetting=True):
+def get_irradiance(img_capt, panel_capt, panel_irradiance, display=False, vignetting=True):
     """
     Get irradiance and image type and display.
 
@@ -205,11 +205,6 @@ def get_irradiance(img_capt, panel_capt, display=False, vignetting=True):
             for img in panel_capt.images:
                 img.vignette = _no_vignette.__get__(img)
 
-        if (albedo := panel_capt.panel_albedo()) is not None:
-            panel_reflectance_by_band = albedo
-        else:
-            panel_reflectance_by_band = [0.49, 0.49, 0.49, 0.49, 0.49] #RedEdge band_index order
-        panel_irradiance = panel_capt.panel_irradiance(panel_reflectance_by_band)    
         irradiance_list = panel_irradiance + [0] # add to account for uncalibrated LWIR band, if applicable
         img_type = "reflectance"
         to_plot = panel_irradiance
@@ -217,7 +212,8 @@ def get_irradiance(img_capt, panel_capt, display=False, vignetting=True):
         if img_capt.dls_present():
             img_type='reflectance'
             irradiance_list = img_capt.dls_irradiance() + [0]
-            to_plot = img_capt.dls_irradiance()
+            if display:
+                to_plot = img_capt.dls_irradiance()
         else:
             img_type = "radiance"
             irradiance_list = None

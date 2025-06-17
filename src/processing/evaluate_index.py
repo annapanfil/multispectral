@@ -15,7 +15,6 @@ def apply_formula(im_aligned: str, formula: str, is_complex: bool = False) -> np
     """
 
     image = get_custom_index(formula, im_aligned, is_complex)
-    image = (image * 255).astype(np.uint8)
 
     return image
 

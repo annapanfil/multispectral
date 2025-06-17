@@ -11,32 +11,30 @@ from src.processing.evaluate_index import apply_formula
 def prepare_image(img_aligned: np.array, channels: List, is_complex: bool, new_size: Tuple[int, int]) -> np.array:
     """ Get the correct channels for prediction and resize the image.
     Args:
-        im_aligned (np.array): The aligned image.
+        im_aligned (np.array): The aligned image in range [0, 1].
         channels (list): List of channels or formulas to use.
         is_complex (bool): Whether the image is complex or not.
         new_size (tuple): New size for the image.
     Returns:
-        np.array: The prepared image.
+        np.array: The prepared image [0, 1] range float32
     """
     # normalize to [0, 255]
-    for i in range(0, img_aligned.shape[2]):
-        img_aligned[:, :, i] = (img_aligned[:, :, i] - np.min(img_aligned[:, :, i])) / (np.max(img_aligned[:, :, i]) - np.min(img_aligned[:, :, i])) * 255
+    # for i in range(0, img_aligned.shape[2]):
+    #     img_aligned[:, :, i] = (img_aligned[:, :, i] - np.min(img_aligned[:, :, i])) / (np.max(img_aligned[:, :, i]) - np.min(img_aligned[:, :, i])) * 255
 
     height, width = img_aligned.shape[:2]
 
-    
     image = np.zeros((height, width, len(channels)))
 
     for i, channel in enumerate(channels):
         if channel in CHANNELS:
             image[:, :, i] = img_aligned[:, :, CHANNELS[channel]]
         else:
-            image[:, :, i] = apply_formula(img_aligned, channel, is_complex)
+            image[:, :, i] = apply_formula(img_aligned, channel, is_complex) # in [0; 1] range
 
     image = cv2.resize(image, new_size)
-    image = image.astype(np.uint8)
 
-    return image
+    return image.astype(np.float32) #[0, 1] range float32
 
 def greedy_grouping(rectangles: List[Rectangle], image_shape: Tuple, resize_factor=1.5, visualize=False, confidences: List[float] = None) -> Tuple[List, np.array]:
     """
@@ -77,7 +75,7 @@ def greedy_grouping(rectangles: List[Rectangle], image_shape: Tuple, resize_fact
                 x_l = min(r.x_l for r in group_rectangles),
                 x_r = max(r.x_r for r in group_rectangles),
                 y_b = min(r.y_b for r in group_rectangles),
-                y_t = max(r.y_t for r in group_rectangles)
+                y_t = max(r.y_t for r in group_rectangles),
             ))
 
             if confidences is not None:

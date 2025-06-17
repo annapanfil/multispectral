@@ -9,6 +9,10 @@ import subprocess
 import time
 import numpy as np
 import requests
+from io import BytesIO
+import cv2
+from concurrent.futures import ThreadPoolExecutor
+
 # import rospy
 # import zstandard as zstd
 
@@ -25,27 +29,59 @@ if DEBUG:
 def almost_equal(a, b, epsilon):
     return abs(a - b) <= epsilon
 
+
+
 def get_image_from_camera(url, params):
     """ Capture photo and download it. Save the image to disk and return the path""" 
-    
-    response = requests.get(url, params=params)
-    if response.status_code == 200 and "raw_storage_path" in response.json().keys():
-        # get image from camera
-        response = response.json()
-        output_paths = []
-        for ch, path in list(response.get("raw_cache_path").items())[:-1]: # no panchromatic
-            photo_nr = response.get("raw_storage_path").get(ch).split("/")[4]
-            photo_url = "http://192.168.1.83" + path
-            img_response = requests.get(photo_url)
 
-            output_dir = (f"{DATASET_BASE_PATH}/raw_images/temp")
-            output_path = save_image(output_dir, img_response, photo_nr, ch)
-            output_paths.append(output_path)
-        return output_paths
-    else:
-        # rospy.logwarn("Couldn't capture image ({})".format(response.json()))
-        print("Couldn't capture image ({})".format(response.json()))
-        return None
+    output_dir = "/dev/shm/temp_images"
+    import os
+    os.makedirs(output_dir, exist_ok=True)
+
+    response = requests.get(url, params=params)
+    data = response.json()
+
+    if data.get('status') != 'complete':
+        print(f"Capture failed: {data}")
+        exit(1) 
+    
+    # 4. Get raw file paths
+    raw_paths = data.get('raw_cache_path', {})
+    if not raw_paths:
+        print("No raw files cached in response")
+        exit(1)
+
+    session = requests.Session()  # Reuse connection
+    images_paths, futures = [], []
+    
+    # 6. Download parrallel images
+    def download_band(session, output_dir, url, ch):
+        response = session.get(url, timeout=10)
+        if response.status_code == 200:
+            output_path = save_image(output_dir, response, path.split("/")[-1], ch)
+            return output_path
+        else:
+            # rospy.logwarn("Couldn't capture image ({})".format(response.json()))
+            print("Couldn't capture image ({})".format(response.json()))
+            return None
+
+
+    with ThreadPoolExecutor() as executor:  # Limited to 3 workers
+        for ch, path in raw_paths.items():
+            url = "http://192.168.1.83" + path
+            futures.append(executor.submit(download_band, session, output_dir, url, ch))
+        
+    # Wait for all downloads to complete and collect results
+    for future in futures:
+        result = future.result()
+        if result:
+            images_paths.append(result)
+        else:
+            print(f"Failed to download image for channel {ch}")            
+        
+    
+    session.close()  # Close the session after all downloads
+    return images_paths
 
 
 def send_compressed_from_dir(path, cctx, sock, del_file=False):
@@ -68,7 +104,8 @@ def send_compressed_from_dir(path, cctx, sock, del_file=False):
         
 
 def save_image(output_dir, response, photo_nr, ch):
-    output_file = "{}/{}".format(output_dir, photo_nr)
+    img_name = photo_nr.split(".")[0]
+    output_file = f"{output_dir}/{img_name}_{ch}.tif"
     print("Saving channel {} to {}".format(ch, output_file))
 
     with open(output_file, 'wb') as file:
