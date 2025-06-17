@@ -2,7 +2,6 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
-# import rawpy
 import cv2
 from pathlib import Path
 import subprocess
@@ -12,7 +11,6 @@ import click
 # from geometry_msgs.msg import PointStamped
 # from sensor_msgs.msg import Image
 import exiftool
-# from ultralytics import YOLO
 import onnxruntime as ort
 import numpy as np
 from src.processing.consts import DATASET_BASE_PATH
@@ -42,8 +40,9 @@ def main(debug):
     # rospy.loginfo("Node has been started")
     print("Starting UAV multispectral litter detection...")
     
+    # Use all 4 CPUs for cv2
     cv2.setUseOptimized(True)
-    cv2.setNumThreads(4)  # Use all 4 CPUs
+    cv2.setNumThreads(4)
 
 
     ### CONFIGURATION
@@ -54,7 +53,6 @@ def main(debug):
     original_image_size = (1456, 1088)
 
     warp_matrices_dir = f"{DATASET_BASE_PATH}/warp_matrices"
-    # model_path = "models/sea-form8_sea_aug-random_best.pt"
     model_path = "models/model.onnx"
     panel_path = f"{DATASET_BASE_PATH}/raw_images/temp_panel" # here is saved the panel image when src.get_panel is used
     panel_nr = "0000"
@@ -71,7 +69,6 @@ def main(debug):
         panel_reflectance_by_band = albedo
     else:
         panel_reflectance_by_band = [0.49, 0.49, 0.49, 0.49, 0.49] #RedEdge band_index order
-    
     panel_irradiance = panel_capt.panel_irradiance(panel_reflectance_by_band)
     
     
@@ -81,12 +78,6 @@ def main(debug):
     print("Loading model...")
     session = ort.InferenceSession(model_path, providers=['CUDAExecutionProvider'])
     input_name = session.get_inputs()[0].name
-    input_shape = session.get_inputs()[0].shape
-    input_dtype = session.get_inputs()[0].type
-    # model = YOLO(model_path)
-    # model.fuse() # Fuse Conv+BN layers
-    # model.half()
-    # model.conf = 0.5
 
     if not debug:
         url = "http://192.168.1.83/capture"
@@ -113,8 +104,7 @@ def main(debug):
         pass
 
     ### MAIN LOOP
-    # while True:
-    for _ in range(20):
+    for i in range(10):
     # while not rospy.is_shutdown():
         start = time.time()
 
@@ -123,12 +113,9 @@ def main(debug):
         altitude = current_altitude
         if not debug:
             # get images from camera
-            s = time.time()
             paths = get_image_from_camera(url, params)
-            e = time.time()
-            print(f"Time of getting image from camera: {e - s:.2f} seconds")
         else:
-            storage_path = f"/home/lariat/images/img_to_simple_test/IMG_08{i}_1.tif"
+            storage_path = f"/home/lariat/images/img_to_simple_test/IMG_086{i}_1.tif"
             paths = [storage_path.replace("_1.tif", f"_{ch}.tif") for ch in range(1, 6)]
 
             # get images from local directory
@@ -146,37 +133,21 @@ def main(debug):
         # print(f"Processing {group_key} with altitude {altitude:.0f} m")
         # rospy.loginfo(f"Processing {group_key} with altitude {altitude:.0f} m")
         
-        s = time.time()
-        print(f"{paths=}")
         img_capt = capture.Capture.from_filelist(paths)
-        print(f"{img_capt=}")
-        e = time.time()
-        print(f"Time of reading image from file: {e - s:.2f} seconds")
-
-        s = time.time()
+        
         img_type = get_irradiance(img_capt, panel_capt, panel_irradiance, display=False, vignetting=False)
-        e = time.time()
-        print(f"Time of getting irradiance: {e - s:.2f} seconds")
-        s = time.time()
+
         img_aligned = align_from_saved_matrices(img_capt, img_type, warp_matrices, altitude, allow_closest=True, reference_band=0)
-        e = time.time()
-        print(f"Time of aligning images: {e - s:.2f} seconds")
-        s = time.time()
+
         image = prepare_image(img_aligned, channels, is_complex, new_image_size)
-        e = time.time()
-        print(f"Time of preparing image: {e - s:.2f} seconds")
-
-        input = np.transpose(image, (2, 1, 0))
+        
         # Add batch dimension: (1, C, H, W)
+        input = np.transpose(image, (2, 1, 0))
         input = np.expand_dims(input, axis=0)
-
+        
         # Detection
         print("Detecting litter...")
-        # results = model.predict(source=image, save=False, verbose=False)
-        s = time.time()
         results = session.run(None, {input_name: input})
-        e = time.time()
-        print(f"Time of model detection: {e - s:.2f} seconds")
 
         bbs = []
         for pred_bbs in results[0]:
@@ -184,29 +155,18 @@ def main(debug):
                 x1, y1, x2, y2, conf, cls = bb
                 # filter if needed: e.g., if conf > 0.5
                 if conf > 0.1:
-                    # rect = Rectangle(x1, y1, x2, y2, "rect")
                     rect = Rectangle(y1, x1, y2, x2, "rect")
-                    bbs.append(rect)
-        
-        pred_bbs = bbs
-        # pred_bbs = results[0].boxes.xyxy.cpu().numpy()
-        # pred_bbs = [Rectangle(*bb, "rect") for bb in pred_bbs]
+                    bbs.append(rect)        
 
         # Merging
         print("Merging piles...")
-        s = time.time()
-        merged_bbs, _, _ = greedy_grouping(pred_bbs, image.shape[:2], resize_factor=1.5, visualize=False)
-        e = time.time()
-        print(f"Time of merging piles: {e - s:.2f} seconds")
+        merged_bbs, _, _ = greedy_grouping(bbs, image.shape[:2], resize_factor=1.5, visualize=False)
 
         print(merged_bbs)
-        image = image * 255.0  # Convert to uint8
-        image = image.astype(np.uint8)
+        image = (image * 255.0).astype(np.uint8)  # Convert to uint8
         for rect in merged_bbs:
             rect.draw(image, color=(0, 255, 0), thickness=2)
         
-        cv2.imwrite(f"/home/lariat/images/preds/photo.jpg", image)
-
         # print(f"Found {len(merged_bbs)} litter piles in {group_key}")
         # Sending outcomes
         # send_outcomes(merged_bbs, image, group_key, image_pub, pos_pixel_pub)
@@ -217,11 +177,12 @@ def main(debug):
         times.append(end - start)
         
 
+        cv2.imwrite(f"/home/lariat/images/preds/prediction{i}.jpg", image)
         # Cleanup
         temp_dir = "/dev/shm/temp_images"
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
-        del img_capt,  img_aligned, image, pred_bbs, merged_bbs, results, input, bbs
+        del img_capt, img_aligned, image, pred_bbs, merged_bbs, results, input, bbs
         gc.collect()  # import gc
 
     

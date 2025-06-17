@@ -7,6 +7,7 @@ import cv2
 from omegaconf import ListConfig
 from skimage.transform import ProjectiveTransform
 import concurrent.futures
+from ..timeit import timer
 
 import time
 def time_decorator(func):
@@ -180,6 +181,7 @@ def load_image_set(
     
     return img_capt, panel_capt
 
+@timer
 def get_irradiance(img_capt, panel_capt, panel_irradiance, display=False, vignetting=True):
     """
     Get irradiance and image type and display.
@@ -224,7 +226,7 @@ def get_irradiance(img_capt, panel_capt, panel_irradiance, display=False, vignet
         img.reflectance(irradiance)
         return img
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
        executor.map(compute_radiance, img_capt.images, irradiance_list)
 
     if display:
@@ -392,7 +394,7 @@ def align_iterative(capture, img_type, reference_band = 5):
 
     return im_aligned, warp_matrices
 
-
+@timer
 def align_from_saved_matrices(capture, img_type: str, warp_matrices_dir: str, altitude: int, allow_closest=False, reference_band=5):
     #TODO: delete string possibility - kept for backward compatibility
     """

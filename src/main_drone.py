@@ -9,8 +9,7 @@ import subprocess
 import time
 import numpy as np
 import requests
-from io import BytesIO
-import cv2
+from src.timeit import timer
 from concurrent.futures import ThreadPoolExecutor
 
 # import rospy
@@ -30,7 +29,7 @@ def almost_equal(a, b, epsilon):
     return abs(a - b) <= epsilon
 
 
-
+@timer
 def get_image_from_camera(url, params):
     """ Capture photo and download it. Save the image to disk and return the path""" 
 
@@ -66,7 +65,7 @@ def get_image_from_camera(url, params):
             return None
 
 
-    with ThreadPoolExecutor() as executor:  # Limited to 3 workers
+    with ThreadPoolExecutor(max_workers=5) as executor:  # Limited to 3 workers
         for ch, path in raw_paths.items():
             url = "http://192.168.1.83" + path
             futures.append(executor.submit(download_band, session, output_dir, url, ch))

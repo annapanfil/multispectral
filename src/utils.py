@@ -6,8 +6,9 @@ import numpy as np
 from src.shapes import Rectangle
 from src.processing.consts import CHANNELS, CAM_HFOV, CAM_VFOV
 from src.processing.evaluate_index import apply_formula
+from src.timeit import timer
 
-
+@timer
 def prepare_image(img_aligned: np.array, channels: List, is_complex: bool, new_size: Tuple[int, int]) -> np.array:
     """ Get the correct channels for prediction and resize the image.
     Args:
