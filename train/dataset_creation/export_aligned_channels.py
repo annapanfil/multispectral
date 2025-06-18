@@ -25,7 +25,6 @@ def main(cfg):
 
     # process images
     for i, image_nr in enumerate(image_numbers):
-
         img_capt, panel_capt = load_image_set(
             cfg.paths.images, image_nr, cfg.paths.panel_image_nr
         )
@@ -54,8 +53,8 @@ def main(cfg):
         other_channels_image = get_components_view(im_aligned, (2,3,4))
         save_image(other_channels_image, f"{path}/{image_nr}_{altitude}_234.png")
 
-        meanRE_image = get_custom_index("0.5 * (E-G)/(E+G) + 0.5 * (E-B)/(E+B)", im_aligned)
-        save_image(meanRE_image, f"{path}/{image_nr}_{altitude}_meanRE.png", gray=True)
+        # meanRE_image = get_custom_index("0.5 * (E-G)/(E+G) + 0.5 * (E-B)/(E+B)", im_aligned)
+        # save_image(meanRE_image, f"{path}/{image_nr}_{altitude}_meanRE.png", gray=True)
         
 
 if __name__ == "__main__":

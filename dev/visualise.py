@@ -16,7 +16,6 @@ def show_image(image, title="Image", figsize=(30,23), cmap='gray'):
 
 def save_image(image, filename, gray = False, is_float=True):
     """Save an image to a file."""
-    print(image.shape)
     if not gray: image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     if is_float: image = (image * 255).astype(np.uint8)  # Scale to 0-255 for saving
     cv2.imwrite(filename, image)

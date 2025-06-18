@@ -92,3 +92,12 @@ class Rectangle:
         cv2.rectangle(
             image, (int(self.x_l), int(self.y_b)), (int(self.x_r), int(self.y_t)), color, thickness
         )
+
+    def to_yolo_string(self, image_size, class_id=0):
+        """ Convert rectangle to YOLO format string """
+
+        center_x = (self.x_l + self.x_r) / 2 / image_size[1]
+        center_y = (self.y_b + self.y_t) / 2 / image_size[0]
+        width = self.width / image_size[1]
+        height = self.height / image_size[0]
+        return f"{class_id} {center_x:.6f} {center_y:.6f} {width:.6f} {height:.6f}"

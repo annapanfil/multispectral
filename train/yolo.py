@@ -52,7 +52,7 @@ def show_gt_and_pred(results, gt_boxes, additional_boxes = [], n_cols=4, show_em
                else: 
                     color = (0, 255, 0)
                x1, y1, x2, y2 = box
-               img = cv2.rectangle(img, (x1, y1), (x2, y2), color, 1)
+               img = cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
 
           for box in abb:
                x1, y1, x2, y2 = box
