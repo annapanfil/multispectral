@@ -22,6 +22,19 @@ class Rectangle:
             y_t = int(center[1] + height / 2),
             label = label
         )
+    
+    @classmethod
+    def from_yolo(cls, center_x, center_y, width, height, class_name, image_shape):
+        """ Create a rectangle from YOLO format values."""
+        image_height, image_width = image_shape 
+
+        return cls(
+            x_l = (center_x - (width / 2)) * image_width,
+            y_b = (center_y - (height / 2)) * image_height,
+            x_r = (center_x + (width / 2)) * image_width,
+            y_t = (center_y + (height / 2)) * image_height,
+            label = class_name
+        )
 
     def __str__(self):
         return f"Rectangle(x_l={self.x_l:.2f}, y_b={self.y_b:.2f}, x_r={self.x_r:.2f}, y_t={self.y_t:.2f}, label={self.label})"
