@@ -106,8 +106,21 @@ class Rectangle:
             image, (int(self.x_l), int(self.y_b)), (int(self.x_r), int(self.y_t)), color, thickness
         )
 
-    def to_yolo_string(self, image_size, class_id=0):
-        """ Convert rectangle to YOLO format string """
+    def to_yolo_string(self, image_size, class_id=None):
+        """ Convert rectangle to YOLO format string 
+        Args:
+            image_size (tuple): Size of the image as (height, width)
+            class_id (int, optional): Class ID for the rectangle. If None, rectanle's label will be used or 0 if it's not convertable to uint.
+        Returns:
+            str: YOLO format string representing the rectangle
+        """
+        if class_id is None:
+            try:
+                class_id = int(self.label)  # Attempt to convert label to int
+                if class_id < 0:
+                    class_id = 0
+            except (ValueError, TypeError):
+                class_id = 0
 
         center_x = (self.x_l + self.x_r) / 2 / image_size[1]
         center_y = (self.y_b + self.y_t) / 2 / image_size[0]

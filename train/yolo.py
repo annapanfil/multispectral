@@ -7,6 +7,8 @@ import click
 import cv2
 import numpy as np
 
+from src.processing.consts import DATASET_BASE_PATH
+
 def read_ground_truth(results):
     # read ground truth boxes
      gt_boxes = []
@@ -80,7 +82,7 @@ def show_gt_and_pred(results, gt_boxes, additional_boxes = [], n_cols=4, show_em
 
 
 @click.command()
-@click.option("--dataset", "-d", help="Name of the dataset in the datasets directory")
+@click.option("--dataset", "-d", help="Name of the dataset in the {DATASET_BASE_PATH}/created directory")
 @click.option("--experiment_name", "-n", default="indices", help="Project name in clear ml")
 @click.option("--task_name", "-t", default="", help="Addition to the task name (default is dataset name)")
 @click.option("--tag", multiple=True, help="Tag for the Clear ML experiment")
@@ -99,8 +101,13 @@ def main(dataset, experiment_name, task_name, tag, version):
      task.add_tags(list(tag))
 
      model = YOLO(f"{version}.pt")  # load a pretrained model
-     epochs = 100
-     yaml_path = f"../datasets/{dataset}" 
+     epochs = 62
+     batch = 4
+     lr = 0.0004291291727623719
+     momentum = 0.0004291291727623719
+     decay = 0.0009051275502118082
+     optimizer = "AdamW"
+     yaml_path = f"{DATASET_BASE_PATH}/created/{dataset}" 
      results = model.train(data=f"{yaml_path}/{dataset}.yaml", epochs=epochs, imgsz=[800, 608], batch=8)
 
      results = model.val(split="train", save=False) 
@@ -112,7 +119,7 @@ def main(dataset, experiment_name, task_name, tag, version):
 
      for split in ("train", "val"):
 
-          results = model.predict(source=f"../datasets/{dataset}/images/{split}", conf=0.3, save=False)
+          results = model.predict(source=f"{DATASET_BASE_PATH}/created/{dataset}/images/{split}", conf=0.3, save=False)
           gt, _ = read_ground_truth(results)
           image = show_gt_and_pred(results, gt)
           task.logger.report_image(title="Predictions Grid", series=split, image = image)

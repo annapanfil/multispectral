@@ -2,6 +2,7 @@
 Read the annotated images, merge piles and export them to a new daatset with train, test, val splits
 """
 
+import shutil
 from typing import List
 import cv2
 import os
@@ -15,10 +16,14 @@ from src.processing.load import load_aligned
 from src.processing.evaluate_index import apply_formula
 from src.processing.consts import CHANNELS, DATASET_BASE_PATH
 from src.shapes import Rectangle
+from train.dataset_creation.augment_dataset import augment_dataset
+
 
 
 def merge_rectangles(rects: List[Rectangle], margin=0) -> List[Rectangle]:
     """ merge rectangles that overlap to bigger rectangles """
+    if len(rects) == 0:
+        return []
     merged = [rects[0]]
 
     for rect in rects[1:]:
@@ -48,16 +53,14 @@ def merge_rectangles(rects: List[Rectangle], margin=0) -> List[Rectangle]:
 def read_one_dataset(
     dataset_path: str,
     excluded_litter: List[str] = ["grass_bio_brown", "flake_PE_black", "flake_PE_transparent"],
-    channel: str = "RGB.png",
-    has_aug: bool = False,
-) -> List:
+    channel: str = "_ch0.tiff"
+    ) -> List:
     """
     Read every annotation in every image from the dataset.
 
     Args:
         dataset_path (str, optional): Path to the dataset containing images and annotations.
         excluded_litter (list, optional): List of litter classes to exclude from the result.
-        excluded_sets (list, optional): List of subdatasets to exclude from the result.
         channel (str, optional): Image channel to use as a base.
 
     Returns:
@@ -68,17 +71,14 @@ def read_one_dataset(
     data = []
 
     image_names = os.listdir(os.path.join(dataset_path, "images", "train"))
-    if has_aug:
-        image_names += os.listdir(os.path.join(dataset_path, "images", "train_aug"))
 
     for image_name in image_names:
         if image_name.endswith(channel):  # only one image per group
-            split = "train_aug" if has_aug and "_aug" in image_name else "train"
-            image_path = os.path.join(dataset_path, "images", split, image_name)
+            image_path = os.path.join(dataset_path, "images", "train", image_name)
             annot_path = os.path.join(
                 dataset_path,
                 "labels",
-                split,
+                "train",
                 image_name.rsplit(".", 1)[0] + ".txt"
             )    
 
@@ -115,8 +115,7 @@ def read_all_datasets(
     datasets,
     dataset_path=f"{DATASET_BASE_PATH}/annotated",
     excluded_litter=["grass_bio_brown", "flake_PE_black", "flake_PE_transparent"],
-    channel="RGB.png",
-    has_aug = False,
+    channel="_ch0.tiff"
 ) -> pd.DataFrame:
     """
     Read every annotation in every image from subdirectories of dataset_path.
@@ -139,10 +138,10 @@ def read_all_datasets(
         new_data = read_one_dataset(
             dataset_path=os.path.join(dataset_path, dataset),
             excluded_litter=excluded_litter,
-            channel=channel,
-            has_aug=has_aug
+            channel=channel
         )
         data.extend(new_data)
+        print(f"Read {len(new_data)} images from {dataset} dataset.")
 
     df = pd.DataFrame(columns=columns, data=data)
     return df
@@ -260,10 +259,9 @@ def export_splits(
         """
     )
 
-    if not os.path.exists(new_dataset_path):
-        for split in ["train", "val", "test"]:
-            os.makedirs(os.path.join(new_dataset_path, "images", split))
-            os.makedirs(os.path.join(new_dataset_path, "labels", split))
+    for split in ["train", "val", "test"]:
+        os.makedirs(os.path.join(new_dataset_path, "images", split))
+        os.makedirs(os.path.join(new_dataset_path, "labels", split))
 
     dataset_name = new_dataset_path.split("/")[-1]
 
@@ -308,7 +306,7 @@ def export_splits(
 @click.option("--channels", "-c", multiple=True, default=["R", "G", "B"], help="channels or formulas to save", show_default=True)
 @click.option("--datasets", "-ds", multiple=True, default = (), help="Datasets to include in the new dataset.")
 @click.option("--test-ds", "-t", multiple=True, default =(), help="Datasets to include in testing dataset, taking all by default.")
-@click.option("--aug", "-a", default=False, is_flag=True, help="Use augmented images from train_aug", show_default=True)
+@click.option("--aug", "-a", default=False, is_flag=True, help="Augment train dataset in the end", show_default=True)
 @click.option("--one_class", "-o", default=True, help="Create dataset with one class (pile) only", show_default=True)
 @click.option("--pile_margin", "-m", default=None, help="Litter distant by this number of pixels will be merged to pile", show_default=True, type=int)
 @click.option("--new_image_size", "-sz", nargs=2, default=(800, 608), help="New image size", show_default=True)
@@ -317,13 +315,21 @@ def main(split, new_dataset_name, channels, datasets, test_ds, aug, one_class, p
     """
     Create a new dataset with train, test, val splits.
     """
-    print(f"Creating a dataset {new_dataset_name}...")
+    print("-" * 100)
+    print(f"{new_dataset_name.upper()}")
+    print("-" * (len(new_dataset_name) + 1))
+    print(f"Datasets to include:         {', '.join(datasets)}")
+    print(f"Splitting technique:         {split}")
+    print(f"Augmenting train dataset:    {'Yes' if aug else 'No'}")
+    print(f"Renaming all clases to pile: {'Yes' if one_class else 'No'}")
+    print(f"New image size:              {new_image_size[0]}x{new_image_size[1]}")
+    print(f"\nPiles will{' not ' if not pile_margin else ' '}be merged{' with ' + str(pile_margin) + ' pixels margin' if pile_margin else ''}.")
 
     is_complex = False
     new_dataset_path = f"{DATASET_BASE_PATH}/created/{new_dataset_name}"
 
     if os.path.exists(new_dataset_path):
-        print("Dataset already exists. Skipping...")
+        print("\nDataset already exists. Skipping...")
         return
 
     channels = list(channels)
@@ -336,30 +342,28 @@ def main(split, new_dataset_name, channels, datasets, test_ds, aug, one_class, p
             print("Treating the formula as complex. (Will be applied to all the formulas)")
             is_complex = True
 
+    print("-" * 100, end="\n\n")
 
     ################################################
-    print("Reading images from datasets ...")
+    print(f"Reading images from datasets...")
 
     df = read_all_datasets(
         datasets=datasets,
         dataset_path=f"{DATASET_BASE_PATH}/annotated",
         excluded_litter=["grass_bio_brown", "flake_PE_black", "flake_PE_transparent"],
-        channel="ch0.tiff",
-        has_aug=aug
+        channel="ch0.tiff"
     )
 
     if pile_margin is not None and pile_margin != "None":
-        print(f"Merging rectangles with margin {pile_margin}...")
+        print(f"\nMerging rectangles with margin {pile_margin}...")
         df["piles"] = df["annots"].apply(lambda x: merge_rectangles(x, pile_margin))
     else :
         df["piles"] = df["annots"]
 
     print("Total images:", len(df), "Total piles:", df["piles"].apply(len).sum())
-    print(df.head())
-
-    print("Splitting data...")
 
     ###############################################
+    print("\nSplitting data...")
 
     if split == "random-all":
         if test_ds == ():
@@ -376,7 +380,7 @@ def main(split, new_dataset_name, channels, datasets, test_ds, aug, one_class, p
 
     elif split == "random-sub":
         unique_subdatasets = df["subdataset"].unique()
-        print(f"Randomly splitting each of subdatasets: {', '.join(unique_subdatasets)}")
+        print(f"Randomly splitting each of the subdatasets: {', '.join(unique_subdatasets)}\n")
 
         # random split for each subdataset
         train_df = pd.DataFrame(columns=["image_path", "piles"])
@@ -389,8 +393,12 @@ def main(split, new_dataset_name, channels, datasets, test_ds, aug, one_class, p
                 print("This split doesn't support providing test datasets.")
             else:
                 # 60-20-20 split for each subdataset
-                train, test_val = train_test_split(sub_df, test_size=0.4, random_state=42)
-                test, val = train_test_split(test_val, test_size=0.5, random_state=42)
+                if len(sub_df) < 5:
+                    print(f"Subdataset {subdataset} has only {len(sub_df)} images. Putting them to train set only.")
+                    train = sub_df.copy()
+                else:
+                    train, test_val = train_test_split(sub_df, test_size=0.4, random_state=42)
+                    test, val = train_test_split(test_val, test_size=0.5, random_state=42)
 
             train_df = pd.concat([train_df, train])
             val_df = pd.concat([val_df, val])
@@ -408,9 +416,25 @@ def main(split, new_dataset_name, channels, datasets, test_ds, aug, one_class, p
         print("Split not recognised. Supports only 'random-all', 'random-sub' and 'val'.")
         exit(1)
     ################################################
-
+    if aug:
+        print("\nAugmenting train set...")
+        additional_data = augment_dataset(train_df, new_dataset_path, n_augment=2)
+        additional_df = pd.DataFrame(additional_data, columns=["dataset", "subdataset", "image_path", "annot_path", "annots", "piles"])
+        
+        if pile_margin is not None and pile_margin != "None":
+            print(f"\nMerging rectangles with margin {pile_margin}...")
+            additional_df["piles"] = additional_df["annots"].apply(lambda x: merge_rectangles(x, pile_margin))
+        
+        train_df = pd.concat([train_df, additional_df], ignore_index=True)
+        
     export_splits(train_df, val_df, test_df, df, new_dataset_path, new_image_size, channels, is_complex, one_class=one_class)
 
+    if aug:
+        shutil.rmtree(os.path.join(new_dataset_path, "images", "train_aug"))
+        shutil.rmtree(os.path.join(new_dataset_path, "labels", "train_aug"))
+        
+
+    print(f"\nDataset {new_dataset_name} created at {new_dataset_path}.")
 
 if __name__ == "__main__":
     main()
