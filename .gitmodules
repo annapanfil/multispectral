@@ -1,0 +1,3 @@
+[submodule "libraries/imageprocessing"]
+	path = libraries/imageprocessing
+	url = git@github.com:IgorCzudy/imageprocessing.git
