@@ -10,7 +10,8 @@ import time
 import numpy as np
 import requests
 from src.timeit import timer
-from concurrent.futures import ThreadPoolExecutor
+import shutil
+
 
 # import rospy
 # import zstandard as zstd
@@ -29,58 +30,69 @@ def almost_equal(a, b, epsilon):
     return abs(a - b) <= epsilon
 
 
+def capture_process(img_queue, stop_event, debug, url, params):
+    """Continuous process to capture images and add paths to queue."""
+    
+    print("Capture process started")
+    i = 0
+    while not stop_event.is_set():
+        # check if image was alredy consumed by main process
+        if img_queue.empty():
+            output_dir = f"/dev/shm/capture_{i}_{os.getpid()}"
+            os.makedirs(output_dir, exist_ok=True)
+            i+=1
+            paths = get_image_from_camera(output_dir, debug, url, params)
+            # if img_queue.full():
+            #     # Get and clean up the old image that's being replaced
+            #     old_paths = img_queue.get_nowait()
+            #     temp_dir = old_paths[0].rsplit("/", 1)[0]
+            #     print(f"Replacing old capture, cleaning: {temp_dir}")
+            #     if os.path.exists(temp_dir):
+            #         shutil.rmtree(temp_dir)
+                
+            # Put the new image in the queue
+            img_queue.put(paths)
+            print(f"Captured {len(paths)} images: {paths}")
+            # time.sleep(3.0)  # Avoid busy-waiting
+
+
 @timer
-def get_image_from_camera(url, params):
+def get_image_from_camera(output_dir, debug=False, url=None, params=None):
     """ Capture photo and download it. Save the image to disk and return the path""" 
-
-    output_dir = "/dev/shm/temp_images"
-    import os
-    os.makedirs(output_dir, exist_ok=True)
-
-    response = requests.get(url, params=params)
-    data = response.json()
-
-    if data.get('status') != 'complete':
-        print(f"Capture failed: {data}")
-        exit(1) 
+    if debug:
+        # Simulate with test images
+        test_img = "/home/lariat/images/img_to_simple_test/IMG_0860_1.tif"
+        return [test_img.replace("_1.tif", f"_{ch}.tif") for ch in range(1, 6)]
     
-    # 4. Get raw file paths
-    raw_paths = data.get('raw_cache_path', {})
-    if not raw_paths:
-        print("No raw files cached in response")
-        exit(1)
-
-    session = requests.Session()  # Reuse connection
-    images_paths, futures = [], []
+    session = requests.Session()
+    images_paths = []
+    # try:
+    # Trigger capture
+    with requests.Session() as session:
+        response = session.get(url, params=params)
+        data = response.json()
     
-    # 6. Download parrallel images
-    def download_band(session, output_dir, url, ch):
-        response = session.get(url, timeout=10)
-        if response.status_code == 200:
-            output_path = save_image(output_dir, response, path.split("/")[-1], ch)
-            return output_path
-        else:
-            # rospy.logwarn("Couldn't capture image ({})".format(response.json()))
-            print("Couldn't capture image ({})".format(response.json()))
-            return None
-
-
-    with ThreadPoolExecutor(max_workers=5) as executor:  # Limited to 3 workers
+        if data.get('status') != 'complete':
+            raise RuntimeError(f"Capture failed: {data}")
+    
+        # Download all bands
+        raw_paths = data.get('raw_cache_path', {})
         for ch, path in raw_paths.items():
-            url = "http://192.168.1.83" + path
-            futures.append(executor.submit(download_band, session, output_dir, url, ch))
-        
-    # Wait for all downloads to complete and collect results
-    for future in futures:
-        result = future.result()
-        if result:
-            images_paths.append(result)
-        else:
-            print(f"Failed to download image for channel {ch}")            
-        
-    
-    session.close()  # Close the session after all downloads
+            full_url = "http://192.168.1.83" + path
+
+            response = session.get(full_url, timeout=10)
+            if response.status_code == 200:
+                path = os.path.join(output_dir, f"band_{ch}.tiff")
+                with open(path, 'wb') as f:
+                    f.write(response.content)
+                images_paths.append(path)
     return images_paths
+    
+    # except Exception as e:
+    #     print(f"Capture error: {str(e)}")
+    #     return []
+    # finally:
+    #     session.close()
 
 
 def send_compressed_from_dir(path, cctx, sock, del_file=False):

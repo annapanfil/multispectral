@@ -226,7 +226,7 @@ def get_irradiance(img_capt, panel_capt, panel_irradiance, display=False, vignet
         img.reflectance(irradiance)
         return img
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+    with concurrent.futures.ThreadPoolExecutor() as executor:
        executor.map(compute_radiance, img_capt.images, irradiance_list)
 
     if display:
