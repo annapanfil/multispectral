@@ -6,6 +6,7 @@ import cv2
 from pathlib import Path
 import subprocess
 import time
+
 import click
 # import rospy
 # from geometry_msgs.msg import PointStamped
@@ -19,6 +20,7 @@ from src.main_drone import capture_process #get_image_from_camera
 
 import micasense.capture as capture
 from src.processing.load import align_from_saved_matrices, find_images, get_irradiance, load_all_warp_matrices
+from src.processing.consts import DATASET_BASE_PATH
 from src.shapes import Rectangle
 from src.utils import greedy_grouping, prepare_image
 import gc
@@ -51,6 +53,7 @@ def main(debug):
     ### CONFIGURATION
     formula = "(N - (E - N))"
     channels = ["N", "G", formula]
+    # channels = ["R", "G", "B"]
     is_complex = False
     new_image_size = (800, 608)
     original_image_size = (1456, 1088)
@@ -196,10 +199,10 @@ def main(debug):
             cv2.imwrite(f"/home/lariat/images/preds/prediction{i}.jpg", image)
             
             # Cleanup
-            temp_dir = paths[0].rsplit("/", 1)[0]  # Assuming all images are in the same directory
-            print(f"Cleaning up temporary directory: {temp_dir}")
-            if os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir)
+            # temp_dir = paths[0].rsplit("/", 1)[0]  # Assuming all images are in the same directory
+            # print(f"Cleaning up temporary directory: {temp_dir}")
+            # if os.path.exists(temp_dir):
+            #     shutil.rmtree(temp_dir)
             del img_capt, img_aligned, image, pred_bbs, merged_bbs, results, input, bbs
             gc.collect()  # import gc
 

@@ -7,6 +7,8 @@ from src.shapes import Rectangle
 from src.processing.consts import CHANNELS, CAM_HFOV, CAM_VFOV
 from src.processing.evaluate_index import apply_formula
 from src.timeit import timer
+import micasense.imageutils as imageutils
+
 
 @timer
 def prepare_image(img_aligned: np.array, channels: List, is_complex: bool, new_size: Tuple[int, int]) -> np.array:
@@ -19,9 +21,6 @@ def prepare_image(img_aligned: np.array, channels: List, is_complex: bool, new_s
     Returns:
         np.array: The prepared image [0, 1] range float32
     """
-    # normalize to [0, 255]
-    # for i in range(0, img_aligned.shape[2]):
-    #     img_aligned[:, :, i] = (img_aligned[:, :, i] - np.min(img_aligned[:, :, i])) / (np.max(img_aligned[:, :, i]) - np.min(img_aligned[:, :, i])) * 255
 
     height, width = img_aligned.shape[:2]
 
@@ -29,6 +28,10 @@ def prepare_image(img_aligned: np.array, channels: List, is_complex: bool, new_s
 
     for i, channel in enumerate(channels):
         if channel in CHANNELS:
+            # normalize channels to [0, 1]
+            # for j in range(img_aligned.shape[2]):
+            #     img_aligned[:,:,j] =  imageutils.normalize(img_aligned[:,:,j])
+            img_aligned[:, :, CHANNELS[channel]] = imageutils.normalize(img_aligned[:, :, CHANNELS[channel]])
             image[:, :, i] = img_aligned[:, :, CHANNELS[channel]]
         else:
             image[:, :, i] = apply_formula(img_aligned, channel, is_complex) # in [0; 1] range

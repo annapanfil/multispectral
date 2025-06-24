@@ -52,22 +52,22 @@ def main(cfg):
         filename = Path(cfg.paths.output, f"{image_nr}_{altitude}")
 
         RGB_image = get_components_view(im_aligned, (2,1,0))
-        save_image(RGB_image, f"{filename}_RGB.png", bgr=True)
+        save_image(RGB_image, f"{filename}_RGB.png")
 
         other_channels_image = get_components_view(im_aligned, (2,3,4))
         save_image(other_channels_image, f"{filename}_234.png")
 
         # NDWI_image = get_index_view(im_aligned, CHANNELS["NIR"], CHANNELS["G"])
-        # save_image(NDWI_image, f"{filename}_RNDWI.png")
+        # save_image(NDWI_image, f"{filename}_RNDWI.png", gray=True)
 
         # mulRE_image = get_custom_index("1-((RE-G)/(RE+G) * (RE-B)/(RE+B))", im_aligned)
-        # save_image(mulRE_image, f"{filename}_mulRE.png")
+        # save_image(mulRE_image, f"{filename}_mulRE.png", gray=True)
 
         # meanRE_image = get_custom_index("0.5 * (RE-G)/(RE+G) + 0.5 * (RE-B)/(RE+B)", im_aligned)
-        # save_image(meanRE_image, f"{filename}_meanRE.png")
+        # save_image(meanRE_image, f"{filename}_meanRE.png", gray=True)
 
         # CIR_image = get_components_view(im_aligned, (3,2,1))
-        # save_image(CIR_image, f"{filename}_CIR.png", bgr=True)
+        # save_image(CIR_image, f"{filename}_CIR.png")
 
         
 

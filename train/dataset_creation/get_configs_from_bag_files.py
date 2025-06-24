@@ -37,20 +37,25 @@ if __name__ == "__main__":
     # panel_image_nr = "0436"
     # images_with_litter = list(range(839,900)) + list(range(907, 1095))
 
-    bag_file = "matriceBag_multispectral_2025-05-19-10-51-49.bag"
-    experiment_name = "hamburg_mapping"
-    panel_image_nr = "0000"
-    images_with_litter = list(range(106,483))
+    # bag_file = "matriceBag_multispectral_2025-05-19-10-51-49.bag"
+    # experiment_name = "hamburg_mapping"
+    # panel_image_nr = "0000"
+    # images_with_litter = list(range(106,483))
+
+    bag_file = "matriceBag_multispectral_2025-05-15-12-04-05.bag"
+    experiment_name = "hamburg_pile"
+    panel_image_nr = "0017"
+    images_with_litter = list(range(41, 298))
+
 
 
     files_path = f"{DATASET_BASE_PATH}/annotated/" + experiment_name + "/"
-    raw_images_path =f"{DATASET_BASE_PATH}/raw_images/hamburg_2025_05_19/"
-    config_files_path = "../conf/processing"
-    channels_out_path = f"{DATASET_BASE_PATH}/for_annotation/hamburg_mapping/"
+    raw_images_path =f"{DATASET_BASE_PATH}/raw_images/hamburg_2025_05_15/"
+    config_files_path = "conf/processing"
+    channels_out_path = f"{DATASET_BASE_PATH}/for_annotation/{experiment_name}/"
     topic_name = "/camera/trigger"
     tolerance = 2 # Tolerancja dla point.z
-    heights = [15] # Lista wysokości do sprawdzenia #[5, 10, 15, 20, 25, 30]
-
+    heights = [5, 10, 15, 20, 25, 30] # Lista wysokości do sprawdzenia
     ##################
     frame_ids = {height: [] for height in heights}
     actual_heights = {height: [] for height in heights}
@@ -77,7 +82,7 @@ if __name__ == "__main__":
 
 
     # save actual heights for the images
-    with open(f'../out/{experiment_name}_heights.txt', 'w') as f:
+    with open(f'out/{experiment_name}_heights.txt', 'w') as f:
         f.write("\n".join([f"{h}m: {len(ids)} photos with litter" for h, ids in image_numbers.items()]) + '\n')
 
         for height in heights:
@@ -87,20 +92,20 @@ if __name__ == "__main__":
             f.write(f"{height} m:\n")
             f.write(pprint.pformat(list(zip(im_n, rounded_heights))) + '\n')
 
-    print(f"Zapisano wysokości do pliku ../out/{experiment_name}_heights.txt")
+    print(f"Zapisano wysokości do pliku out/{experiment_name}_heights.txt")
 
     def create_config(image_paths, height, suffix=""):
         paths = {
-            "images": f"{files_path}/images/", ## + set/subset",
+            "images": f"{raw_images_path}/images/", ## + set/subset",
             "warp_matrices": f"{DATASET_BASE_PATH}/annotated/warp_matrices",
             "panel_image_nr": panel_image_nr,
-            "output": f"{files_path}/chosen_images/", # + name/altitude
+            "output": f"{raw_images_path}/chosen_images/", # + name/altitude
             "channels_output": channels_out_path # + name/altitude
         }
 
         paths["images"] += image_paths[0][7:19]
-        paths["output"] += f"{experiment_name}/{height}/"
-        paths["channels_output"] += f"{experiment_name}/{height}/"
+        paths["output"] += f"{height}/"
+        paths["channels_output"] += f"{height}/"
 
         image_numbers = [int(path.split("/")[4].split("_")[1]) for path in image_paths]
 
@@ -138,7 +143,3 @@ if __name__ == "__main__":
             configs.append(config_fn.split(".")[0])
 
     print(f"Zapisano pliki konfiguracyjne do {','.join(configs)}")
-
-        
-
-

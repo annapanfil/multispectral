@@ -61,7 +61,7 @@ def get_image_from_camera(output_dir, debug=False, url=None, params=None):
     """ Capture photo and download it. Save the image to disk and return the path""" 
     if debug:
         # Simulate with test images
-        test_img = "/home/lariat/images/img_to_simple_test/IMG_0860_1.tif"
+        test_img = "/home/lariat/images/raw_images/temp/IMG_0046_1.tif"
         return [test_img.replace("_1.tif", f"_{ch}.tif") for ch in range(1, 6)]
     
     session = requests.Session()

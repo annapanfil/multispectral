@@ -22,6 +22,19 @@ class Rectangle:
             y_t = int(center[1] + height / 2),
             label = label
         )
+    
+    @classmethod
+    def from_yolo(cls, center_x, center_y, width, height, class_name, image_shape):
+        """ Create a rectangle from YOLO format values."""
+        image_height, image_width = image_shape 
+
+        return cls(
+            x_l = (center_x - (width / 2)) * image_width,
+            y_b = (center_y - (height / 2)) * image_height,
+            x_r = (center_x + (width / 2)) * image_width,
+            y_t = (center_y + (height / 2)) * image_height,
+            label = class_name
+        )
 
     def __str__(self):
         return f"Rectangle(x_l={self.x_l:.2f}, y_b={self.y_b:.2f}, x_r={self.x_r:.2f}, y_t={self.y_t:.2f}, label={self.label})"
@@ -92,3 +105,25 @@ class Rectangle:
         cv2.rectangle(
             image, (int(self.x_l), int(self.y_b)), (int(self.x_r), int(self.y_t)), color, thickness
         )
+
+    def to_yolo_string(self, image_size, class_id=None):
+        """ Convert rectangle to YOLO format string 
+        Args:
+            image_size (tuple): Size of the image as (height, width)
+            class_id (int, optional): Class ID for the rectangle. If None, rectanle's label will be used or 0 if it's not convertable to uint.
+        Returns:
+            str: YOLO format string representing the rectangle
+        """
+        if class_id is None:
+            try:
+                class_id = int(self.label)  # Attempt to convert label to int
+                if class_id < 0:
+                    class_id = 0
+            except (ValueError, TypeError):
+                class_id = 0
+
+        center_x = (self.x_l + self.x_r) / 2 / image_size[1]
+        center_y = (self.y_b + self.y_t) / 2 / image_size[0]
+        width = self.width / image_size[1]
+        height = self.height / image_size[0]
+        return f"{class_id} {center_x:.6f} {center_y:.6f} {width:.6f} {height:.6f}"

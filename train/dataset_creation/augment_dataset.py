@@ -5,6 +5,7 @@ import numpy as np
 
 from src.processing.load import load_aligned
 from src.processing.consts import DATASET_BASE_PATH
+from src.shapes import Rectangle
 
 # --- Augmentation Pipeline ---
 transforms = A.Compose([
@@ -47,7 +48,7 @@ transforms = A.Compose([
         max_holes=3, max_height=0.1, max_width=0.1,
         fill_value=0, p=0.3  # water is mostly close to black
     )
-], bbox_params=A.BboxParams(format='yolo', label_fields=['class_labels']))
+], bbox_params=A.BboxParams(format='yolo', label_fields=['class_labels'], clip=True))
 
 from pathlib import Path
 import os
@@ -55,8 +56,8 @@ import os
 def pre_augment_dataset(base_dir, n_augment=2):
     """Generate augmented images/labels and save to train_aug."""
 
-    os.makedirs(f"{base_dir}images/train_aug/", exist_ok=True)
-    os.makedirs(f"{base_dir}labels/train_aug/", exist_ok=True)
+    os.makedirs(f"{base_dir}/images/train_aug/", exist_ok=True)
+    os.makedirs(f"{base_dir}/labels/train_aug/", exist_ok=True)
     
     imgs_dir = f"{base_dir}/images/train/"
     for im_name in os.listdir(imgs_dir):
@@ -90,6 +91,48 @@ def pre_augment_dataset(base_dir, n_augment=2):
                     for class_id, bbox in zip(class_labels, transformed["bboxes"]):
                         f.write(f"{int(class_id)} {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}\n")
     
+
+def augment_dataset(df, base_dir, n_augment=2):
+    """Generate augmented images/labels and save to train_aug."""
+
+    os.makedirs(f"{base_dir}/images/train_aug", exist_ok=True)
+    os.makedirs(f"{base_dir}/labels/train_aug", exist_ok=True)
+
+    added_data = []
+    
+    for _, row in df.iterrows():
+        im_name = row["image_path"].rsplit("/", 1)[1].rsplit("_", 1)[0]  # Extract image name without channel
+        # print(f"Processing {im_name}")
+
+        image = load_aligned(row["image_path"].rsplit("/", 1)[0], im_name).astype(np.uint8)
+        
+        yolo_boxes = [list(map(float, r.to_yolo_string(image.shape[:2]).split())) for r in row["piles"]]
+        bboxes = [yb[1:] for yb in yolo_boxes]  # Only bbox coordinates
+        class_labels = [int(yb[0]) for yb in yolo_boxes]  # Class IDs
+
+        # Apply augmentations `n_augment` times
+        for i in range(n_augment):
+            transformed = transforms(
+                image=image,
+                bboxes=bboxes,
+                class_labels=class_labels
+            )
+            
+            # Save augmented channels
+            for ch in range(image.shape[2]-1, -1, -1): # reverse order to chave ch0 last
+                aug_img_path = f"{base_dir}/images/train_aug/{im_name}_aug{i}_ch{ch}.tiff"
+                cv2.imwrite(aug_img_path, transformed["image"][:, :, ch])
+                aug_label_path = f"{base_dir}/labels/train_aug/{im_name}_aug{i}_ch{ch}.txt"
+                with open(aug_label_path, 'w') as f:
+                    for class_id, bbox in zip(class_labels, transformed["bboxes"]):
+                        f.write(f"{int(class_id)} {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}\n")
+
+            bbs =  [Rectangle.from_yolo(*b, str(class_id), transformed["image"].shape[:2]) for b in transformed["bboxes"]]
+            added_data.append([row["dataset"], row["subdataset"], aug_img_path, aug_label_path, bbs, bbs])
+
+    return added_data
+
+
 if __name__ == "__main__":
     random.seed(42)
     pre_augment_dataset(
