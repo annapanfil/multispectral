@@ -24,11 +24,11 @@ from sensor_msgs.msg import Image
 from geometry_msgs.msg import PointStamped
 import zstandard as zstd
 
-
 from src.shapes import Rectangle
 from src.utils import get_real_piles_size, greedy_grouping, prepare_image
 from src.processing.load import align_from_saved_matrices, find_images, get_irradiance, load_all_warp_matrices, load_image_set
 from src.processing.consts import CAM_HFOV, CAM_VFOV, DATASET_BASE_PATH
+from src.main import send_outcomes
 
 import sys
 import micasense.capture as capture
@@ -123,49 +123,7 @@ def process_whole_img(group_key, images):
         for rect in merged_bbs:
             rect.draw(image, color=(0, 255, 0), thickness=2)
             
-        send_outcomes(merged_bbs, image, group_key, image_pub, pos_pixel_pub)
-
-def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_pub, pos_pixel_pub):
-    print(f"Sending outcomes for {group_key}")
-    msg = Image()
-    msg.header.stamp = rospy.Time.now()
-    msg.header.frame_id = group_key
-    msg.height = img.shape[0]
-    msg.width = img.shape[1]
-    msg.encoding = 'rgb8'
-    msg.is_bigendian = False
-    msg.step = img.shape[1] * 3
-    msg.data = img.tobytes()
-
-    image_pub.publish(msg)
-
-    # cv2.imwrite(f'../out/processed/{group_key}.jpg', img)
-
-    if len(bboxes) > 0:
-        for i, bb in enumerate(bboxes):
-            msg = PointStamped()
-            msg.header.stamp = rospy.Time.now()
-            msg.header.frame_id = group_key + f"_pile{i}"
-            # convert from reduced image coordinates to original image coordinates
-            cx = bb.center[0] * (original_image_size[0] / new_image_size[0])
-            cy = bb.center[1] * (original_image_size[1] / new_image_size[1])
-
-            msg.point.x = cx
-            msg.point.y = cy
-            
-            pos_pixel_pub.publish(msg)
-            rospy.loginfo(f"Sent positions for {group_key} to rostopic")
-    else:
-        rospy.logwarn("No pile detected. No positions to publish.")
-        # rospy.logwarn("No pile detected. Reporting the image center") #TODO: delete
-        # msg = PointStamped()
-        # msg.header.stamp = rospy.Time.now()
-        # msg.header.frame_id = group_key + f"_no_pile"
-        # msg.point.x = int(original_image_size[0]/2)
-        # msg.point.y = int(original_image_size[1]/2)
-        
-        # pos_pixel_pub.publish(msg)
-        
+        send_outcomes(merged_bbs, image, group_key, image_pub, pos_pixel_pub)        
 
 
 def exit_threads(executor, server):

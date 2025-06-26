@@ -8,7 +8,7 @@ from src.processing.consts import CHANNELS, CAM_HFOV, CAM_VFOV
 from src.processing.evaluate_index import apply_formula
 from src.timeit import timer
 import micasense.imageutils as imageutils
-
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 @timer
 def prepare_image(img_aligned: np.array, channels: List, is_complex: bool, new_size: Tuple[int, int]) -> np.array:
@@ -23,23 +23,41 @@ def prepare_image(img_aligned: np.array, channels: List, is_complex: bool, new_s
     """
 
     height, width = img_aligned.shape[:2]
-
     image = np.zeros((height, width, len(channels)))
 
-    for i, channel in enumerate(channels):
+    def process_channel(i, channel):
         if channel in CHANNELS:
             # normalize channels to [0, 1]
-            # for j in range(img_aligned.shape[2]):
-            #     img_aligned[:,:,j] =  imageutils.normalize(img_aligned[:,:,j])
             img_aligned[:, :, CHANNELS[channel]] = imageutils.normalize(img_aligned[:, :, CHANNELS[channel]])
-            image[:, :, i] = img_aligned[:, :, CHANNELS[channel]]
+            return i, img_aligned[:, :, CHANNELS[channel]]
         else:
-            image[:, :, i] = apply_formula(img_aligned, channel, is_complex) # in [0; 1] range
+            return i, apply_formula(img_aligned, channel, is_complex)
+        
+    with ThreadPoolExecutor() as executor:
+        futures = []
+        for i, channel in enumerate(channels):
+            futures.append(executor.submit(process_channel, i, channel))
+        
+        for future in as_completed(futures):
+            i, channel_data = future.result()
+            image[:, :, i] = channel_data
 
     image = cv2.resize(image, new_size)
+    return image.astype(np.float32)  # [0, 1] range float32
 
-    return image.astype(np.float32) #[0, 1] range float32
+    # for i, channel in enumerate(channels):
+    #     if channel in CHANNELS:
+    #         # normalize channels to [0, 1]
+    #         img_aligned[:, :, CHANNELS[channel]] = imageutils.normalize(img_aligned[:, :, CHANNELS[channel]])
+    #         image[:, :, i] = img_aligned[:, :, CHANNELS[channel]]
+    #     else:
+    #         image[:, :, i] = apply_formula(img_aligned, channel, is_complex) # in [0; 1] range
 
+    # image = cv2.resize(image, new_size)
+
+    # return image.astype(np.float32) #[0, 1] range float32
+
+@timer
 def greedy_grouping(rectangles: List[Rectangle], image_shape: Tuple, resize_factor=1.5, visualize=False, confidences: List[float] = None) -> Tuple[List, np.array]:
     """
     Merge intersecting rectangles.

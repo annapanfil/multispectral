@@ -11,7 +11,8 @@ import numpy as np
 import requests
 from src.timeit import timer
 import shutil
-
+import rospy
+from geometry_msgs.msg import PointStamped
 
 # import rospy
 # import zstandard as zstd
@@ -33,31 +34,26 @@ def almost_equal(a, b, epsilon):
 def capture_process(img_queue, stop_event, debug, url, params):
     """Continuous process to capture images and add paths to queue."""
     
+    rospy.init_node('camera_capture_node', anonymous=True)
+    img_cam_url_publisher = rospy.Publisher("/camera/trigger", PointStamped, queue_size=10)
+
     print("Capture process started")
     i = 0
     while not stop_event.is_set():
         # check if image was alredy consumed by main process
         if img_queue.empty():
+            rospy.loginfo("Capturing photo...")
             output_dir = f"/dev/shm/capture_{i}_{os.getpid()}"
             os.makedirs(output_dir, exist_ok=True)
             i+=1
-            paths = get_image_from_camera(output_dir, debug, url, params)
-            # if img_queue.full():
-            #     # Get and clean up the old image that's being replaced
-            #     old_paths = img_queue.get_nowait()
-            #     temp_dir = old_paths[0].rsplit("/", 1)[0]
-            #     print(f"Replacing old capture, cleaning: {temp_dir}")
-            #     if os.path.exists(temp_dir):
-            #         shutil.rmtree(temp_dir)
-                
+            paths = get_image_from_camera(output_dir, img_cam_url_publisher, debug, url, params)
+            
             # Put the new image in the queue
             img_queue.put(paths)
-            print(f"Captured {len(paths)} images: {paths}")
-            # time.sleep(3.0)  # Avoid busy-waiting
-
-
+            print(f"Captured {len(paths)} images.")
+            
 @timer
-def get_image_from_camera(output_dir, debug=False, url=None, params=None):
+def get_image_from_camera(output_dir, img_cam_url_publisher, debug=False, url=None, params=None):
     """ Capture photo and download it. Save the image to disk and return the path""" 
     if debug:
         # Simulate with test images
@@ -74,7 +70,21 @@ def get_image_from_camera(output_dir, debug=False, url=None, params=None):
     
         if data.get('status') != 'complete':
             raise RuntimeError(f"Capture failed: {data}")
-    
+        
+        # Sand path of the photo on camera storage to ROS topic for bagfile recording 
+        img_name = data.get("raw_storage_path").get("1") # name of channel 1 image
+        trigger_msg=PointStamped()
+        trigger_msg.header.frame_id = img_name
+
+        # TODO get position from drone    
+        # position_sub = rospy.Subscriber("/dji_osdk_ros/local_position", PointStamped, callback=position_callback)   
+        trigger_msg.point.z = 15
+
+        trigger_msg.header.stamp = rospy.Time.now()
+        img_cam_url_publisher.publish(trigger_msg)
+        # trigger_rate.sleep()
+
+
         # Download all bands
         raw_paths = data.get('raw_cache_path', {})
         for ch, path in raw_paths.items():
