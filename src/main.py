@@ -138,7 +138,7 @@ def main(debug):
     original_image_size = (1456, 1088)
 
     warp_matrices_dir = f"{DATASET_BASE_PATH}/warp_matrices"
-    model_path = "models/model.onnx"
+    model_path = "/home/lariat/code/onnx/model_2.onnx"
     panel_path = f"{DATASET_BASE_PATH}/raw_images/temp_panel" # here is saved the panel image when src.get_panel is used
     panel_nr = "0000"
 
@@ -198,16 +198,19 @@ def main(debug):
                 e = time.time()
                 print(f"Time of waiting for img in queue: {e-s:.2f}")
             else:
-                try:
-                    s=time.time()
-                    msg = rospy.wait_for_message(TOPIC_NAME, PointStamped, timeout=10)
-                    storage_path = msg.header.frame_id.replace("/files/", IMAGE_DIR)
-                    paths = [storage_path.replace("_1.tif", f"_{ch}.tif") for ch in range(1, 6)]
-                    e=time.time()
-                    print(f"Time of waiting for message with img path: {e-s:.2f} seconds")
-                except rospy.ROSException:
-                    rospy.logwarn(f"No message received on topic {TOPIC_NAME} within 10s. Retrying...")
-                    continue
+                test_img = "/home/lariat/images/raw_images/hamburg_2025_05_19/images/0000SET/000/IMG_0172_1.tif"
+                paths = [test_img.replace("_1.tif", f"_{ch}.tif") for ch in range(1, 6)]
+
+                # try:
+                #     s=time.time()
+                #     msg = rospy.wait_for_message(TOPIC_NAME, PointStamped, timeout=10)
+                #     storage_path = msg.header.frame_id.replace("/files/", IMAGE_DIR)
+                #     paths = [storage_path.replace("_1.tif", f"_{ch}.tif") for ch in range(1, 6)]
+                #     e=time.time()
+                #     print(f"Time of waiting for message with img path: {e-s:.2f} seconds")
+                # except rospy.ROSException:
+                #     rospy.logwarn(f"No message received on topic {TOPIC_NAME} within 10s. Retrying...")
+                #     continue
             # group_key = paths[0].rsplit("/", 1)[1].rsplit("_", 1)[0] # for logging purposes
             # Preprocessing
             # print(f"Processing {group_key} with altitude {altitude:.0f} m")
