@@ -33,7 +33,7 @@ import signal
 from typing import List
 
 
-current_altitude = 15
+current_altitude = 25
 
 def position_callback(msg):
     global current_altitude
@@ -105,59 +105,29 @@ def main(debug):
 
         rospy.sleep(1.0)  # wait for publisher to register
         capture_proc = Process(target=capture_process, args=(img_queue, stop_event, debug, url, params))
-        capture_proc.daemon = True  # Terminate with main process
+        # capture_proc.daemon = True  # Terminate with main process
         capture_proc.start()
 
         def signal_handler(sig, frame):
             print("\nStopping...")
             capture_proc.terminate()
+            stop_event.set()
             capture_proc.join(timeout=1.0)
+            if capture_proc.is_alive():
+                print("Terminating capture process...")
+                capture_proc.terminate()
             if img_queue.full():
                 old_paths = img_queue.get_nowait()
                 temp_dir = old_paths[0].rsplit("/", 1)[0]
                 if os.path.exists(temp_dir):
+                    print(f"Cleaning up temporary directory: {temp_dir}")
                     shutil.rmtree(temp_dir)
             sys.exit(0)
 
         signal.signal(signal.SIGINT, signal_handler)
 
-
-    # import os
-    # os.environ["ROS_MASTER_URI"] = "http://localhost:11311"
-    # os.environ["ROS_IP"] = "127.0.0.1"
-    # os.environ["ROS_HOSTNAME"] = "localhost"
-    # print(f"ROS_MASTER_URI = {os.environ.get('ROS_MASTER_URI', 'NOT SET!')}")
-    # print(f"ROS_HOSTNAME = {os.environ.get('ROS_IP', 'NOT SET!')}")
-    # import rospy
-
     rospy.init_node("UAV_multispectral_detector")
     rospy.loginfo("Node has been started")
-
-    # print("Starting UAV multispectral litter detection...")
-    
-    # Use all 4 CPUs for cv2
-    # cv2.setUseOptimized(True)
-    # cv2.setNumThreads(4)
-
-    # time.sleep(1)  # wait for the node to be ready
-    # from std_msgs.msg import String
-    # pub = rospy.Publisher('your_topic', String, queue_size=10)
-    # rospy.sleep(1.0)  # wait for publisher to register
-
-
-    # msg=String()
-    # msg.data = "hello from x"
-    # pub.publish(msg)
-    # exit(0)
-    # print("send message 1")
-    # import time; time.sleep(1)  # wait for the topic to be ready
-    # pub.publish("your message")
-    # print("send message 2")
-    # time.sleep(1)  # wait for the topic to be ready
-    # pub.publish("your message")
-    # print("send message 3")
-    # time.sleep(1)  # wait for the topic to be ready
-    # pub.publish("your message")
 
     ### CONFIGURATION
     formula = "(N - (E - N))"
@@ -191,9 +161,6 @@ def main(debug):
     pos_pixel_pub = rospy.Publisher("/multispectral/pile_pixel_position", PointStamped, queue_size=10)
     image_pub = rospy.Publisher("/multispectral/detection_image", Image, queue_size=10)
     
-
-
-
     print("Loading model...")
     session = ort.InferenceSession(model_path, providers=['CUDAExecutionProvider'])
     input_name = session.get_inputs()[0].name
@@ -213,24 +180,21 @@ def main(debug):
         
 
     ### MAIN LOOP
-    for _ in range(15):
-    # while not rospy.is_shutdown():
-        try: 
+    try: 
+        while not rospy.is_shutdown():
             start = time.time()
 
             altitude = current_altitude
 
             if not debug:
                 #get image from subprocess queue
-                #TODO timeout error handling
                 s = time.time()
-                # try:
-                #     paths = img_queue.get(timeout=5.0)
-                # except Queue.Empty:
-                #     rospy.logwarn("Image queue timeout, no images received in 5 seconds. Retrying...")
-                #     continue
-
-                paths = img_queue.get()  # 5s timeout timeout=5.0
+                try:
+                    paths = img_queue.get(timeout=5.0)
+                except Queue.Empty:
+                    rospy.logwarn("Image queue timeout, no images received in 5 seconds. Retrying...")
+                    continue
+                # paths = img_queue.get()  # 5s timeout timeout=5.0
                 e = time.time()
                 print(f"Time of waiting for img in queue: {e-s:.2f}")
             else:
@@ -276,7 +240,7 @@ def main(debug):
                 for bb in pred_bbs:
                     x1, y1, x2, y2, conf, cls = bb
                     # filter if needed: e.g., if conf > 0.5
-                    if conf > 0.1:
+                    if conf > 0.5:
                         rect = Rectangle(y1, x1, y2, x2, "rect")
                         bbs.append(rect)        
 
@@ -311,10 +275,14 @@ def main(debug):
             # rospy.loginfo(f"Time for this photo: {end - start:.2f} seconds")
             times.append(end - start)
 
-
-        except KeyboardInterrupt:
-            signal_handler(None, None)
-
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        # Cleanup when ROS shuts down
+        stop_event.set()
+        capture_proc.join(2.0)
+        if capture_proc.is_alive():
+            capture_proc.terminate()
     
     if len(times) != 0:
         print("TIME STATISTICS:")
@@ -322,9 +290,6 @@ def main(debug):
         print("min: {}, max: {}, avg: {}".format(min(times[1:]), max(times[1:]), sum(times[1:])/len(times[1:])))
     else:
         print("No images captured, time statistics not available.")
-
-    if not debug:
-        signal_handler(None, None, capture_proc, stop_event, img_queue)
 
 
 if __name__ == "__main__":

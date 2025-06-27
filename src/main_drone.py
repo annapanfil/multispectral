@@ -34,24 +34,34 @@ def almost_equal(a, b, epsilon):
 def capture_process(img_queue, stop_event, debug, url, params):
     """Continuous process to capture images and add paths to queue."""
     
-    rospy.init_node('camera_capture_node', anonymous=True)
-    img_cam_url_publisher = rospy.Publisher("/camera/trigger", PointStamped, queue_size=10)
+    try:
+        rospy.init_node('camera_capture_node', anonymous=True)
+        img_cam_url_publisher = rospy.Publisher("/camera/trigger", PointStamped, queue_size=10)
 
-    print("Capture process started")
-    i = 0
-    while not stop_event.is_set():
-        # check if image was alredy consumed by main process
-        if img_queue.empty():
-            rospy.loginfo("Capturing photo...")
-            output_dir = f"/dev/shm/capture_{i}_{os.getpid()}"
-            os.makedirs(output_dir, exist_ok=True)
-            i+=1
-            paths = get_image_from_camera(output_dir, img_cam_url_publisher, debug, url, params)
-            
-            # Put the new image in the queue
-            img_queue.put(paths)
-            print(f"Captured {len(paths)} images.")
-            
+        print("Capture process started")
+        i = 0
+        while not stop_event.is_set():
+            # check if image was alredy consumed by main process
+            if img_queue.empty():
+                rospy.loginfo("Capturing photo...")
+                output_dir = f"/dev/shm/capture_{i}_{os.getpid()}"
+                os.makedirs(output_dir, exist_ok=True)
+                i+=1
+                paths = get_image_from_camera(output_dir, img_cam_url_publisher, debug, url, params)
+                
+                # Put the new image in the queue
+                img_queue.put(paths)
+                print(f"Captured {len(paths)} images.")
+    
+    #end of process 
+    except KeyboardInterrupt:
+        pass  # Let main process handle termination
+    finally:
+        if debug:
+            print("Capture process exiting")
+
+
+
 @timer
 def get_image_from_camera(output_dir, img_cam_url_publisher, debug=False, url=None, params=None):
     """ Capture photo and download it. Save the image to disk and return the path""" 
@@ -62,7 +72,7 @@ def get_image_from_camera(output_dir, img_cam_url_publisher, debug=False, url=No
     
     session = requests.Session()
     images_paths = []
-    # try:
+
     # Trigger capture
     with requests.Session() as session:
         response = session.get(url, params=params)
@@ -78,12 +88,10 @@ def get_image_from_camera(output_dir, img_cam_url_publisher, debug=False, url=No
 
         # TODO get position from drone    
         # position_sub = rospy.Subscriber("/dji_osdk_ros/local_position", PointStamped, callback=position_callback)   
-        trigger_msg.point.z = 15
+        trigger_msg.point.z = 25
 
         trigger_msg.header.stamp = rospy.Time.now()
         img_cam_url_publisher.publish(trigger_msg)
-        # trigger_rate.sleep()
-
 
         # Download all bands
         raw_paths = data.get('raw_cache_path', {})
@@ -98,11 +106,6 @@ def get_image_from_camera(output_dir, img_cam_url_publisher, debug=False, url=No
                 images_paths.append(path)
     return images_paths
     
-    # except Exception as e:
-    #     print(f"Capture error: {str(e)}")
-    #     return []
-    # finally:
-    #     session.close()
 
 
 def send_compressed_from_dir(path, cctx, sock, del_file=False):
