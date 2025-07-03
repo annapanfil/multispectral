@@ -8,16 +8,25 @@ import ultralytics
 import cv2
 
 
-def print_results_yolo(val_results, title=""):
+def print_results_yolo(val_results, title="", filename=None):
     res_title = f"{title.upper()} VALIDATION RESULTS"
-    print(f"\n{res_title} \n{'=' * len(res_title)}")
-    print(f"""Results:
+    res_string = f"""
+{res_title}
+{'=' * len(res_title)}
+
+Results:
 mAP50: {val_results.box.ap50[0]:.3f}
 mAP50-95: {val_results.box.ap[0]:.3f}
 Precision: {val_results.box.mp:.3f}
 Recall: {val_results.box.mr:.3f}
-F1: {val_results.box.f1[0]:.3f}""")
+F1: {val_results.box.f1[0]:.3f}
+"""
 
+    print(f"\n{res_string}")
+    
+    if filename:
+        with open(filename, "a") as f:
+            f.write(res_string)
 
     _, axs = plt.subplots(1, 5, figsize=(20, 4))
 

@@ -9,6 +9,7 @@ import time
 import rospy
 
 import click
+import rospy
 from geometry_msgs.msg import PointStamped
 from sensor_msgs.msg import Image
 import exiftool
@@ -21,7 +22,7 @@ from src.timeit import timer
 # from src.main_ground import send_outcomes
 
 import micasense.capture as capture
-from src.processing.load import align_from_saved_matrices, find_images, get_irradiance, load_all_warp_matrices
+from src.processing.load import align_from_saved_matrices, find_images, get_irradiance, get_panel_irradiance, load_all_warp_matrices
 from src.processing.consts import DATASET_BASE_PATH
 from src.shapes import Rectangle
 from src.utils import greedy_grouping, prepare_image
@@ -89,6 +90,13 @@ def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_
 @click.option("--debug", '-d', is_flag=True, default=False, help="Run in debug mode with local images")
 def main(debug):
     """Main function to capture images from UAV multispectral camera and detect litter."""
+    rospy.init_node("UAV_multispectral_detector")
+    rospy.loginfo("Node has been started")
+    print("Starting UAV multispectral litter detection...")
+    
+    # Use all 4 CPUs for cv2
+    cv2.setUseOptimized(True)
+    cv2.setNumThreads(4)
 
     if not debug:
         print("Staring image proces")
@@ -151,16 +159,37 @@ def main(debug):
     panel_names = find_images(Path(panel_path), panel_nr, panel=True, no_panchromatic=True)
     panel_capt = capture.Capture.from_filelist(panel_names)
 
-    if (albedo := panel_capt.panel_albedo()) is not None:
-        panel_reflectance_by_band = albedo
-    else:
-        panel_reflectance_by_band = [0.49, 0.49, 0.49, 0.49, 0.49] #RedEdge band_index order
-    panel_irradiance = panel_capt.panel_irradiance(panel_reflectance_by_band)
-    
+    panel_irradiance = get_panel_irradiance(panel_capt)
+
     
     pos_pixel_pub = rospy.Publisher("/multispectral/pile_pixel_position", PointStamped, queue_size=10)
     image_pub = rospy.Publisher("/multispectral/detection_image", Image, queue_size=10)
-    
+
+
+    print("Staring image proces")
+    img_queue = Queue(maxsize=1)  # Limit to 1 sets of images, we want the newest made photo eny way
+    stop_event = Manager().Event()
+    url = "http://192.168.1.83/capture"
+    params = {
+        'block': 'true',
+        'cache_raw': 31,   # All 5 bands (binary 11111)
+        'store_capture': 'false',  # Skip SD card write
+        'preview': 'false',
+        'cache_jpeg': 0
+    }
+    capture_proc = Process(target=capture_process, args=(img_queue, stop_event, debug, url, params))
+    capture_proc.daemon = True  # Terminate with main process
+    capture_proc.start()
+
+    def signal_handler(sig, frame):
+        print("\nStopping...")
+        capture_proc.terminate()
+        capture_proc.join(timeout=1.0)
+        sys.exit(0)
+        #TODO dodac czyszczenie 
+    signal.signal(signal.SIGINT, signal_handler)
+
+
     print("Loading model...")
     session = ort.InferenceSession(model_path, providers=['CUDAExecutionProvider'])
     input_name = session.get_inputs()[0].name
@@ -215,6 +244,7 @@ def main(debug):
             # Preprocessing
             # print(f"Processing {group_key} with altitude {altitude:.0f} m")
             # rospy.loginfo(f"Processing {group_key} with altitude {altitude:.0f} m")
+
             
             s = time.time()
             img_capt = capture.Capture.from_filelist(paths)
@@ -256,22 +286,8 @@ def main(debug):
                 rect.draw(image, color=(0, 255, 0), thickness=2)
             
             # Sending outcomes
-            group_key = "abcd"
-            print(f"Found {len(merged_bbs)} litter piles in {group_key}")
+            group_key = "1234"
             send_outcomes(merged_bbs, image, group_key, image_pub, pos_pixel_pub)
-
-
-            # Cleanup
-            s = time.time()
-            if not debug:
-                temp_dir = paths[0].rsplit("/", 1)[0]  # Assuming all images are in the same directory
-                print(f"Cleaning up temporary directory: {temp_dir}")
-                if os.path.exists(temp_dir):
-                    shutil.rmtree(temp_dir)
-            del img_capt, img_aligned, image, pred_bbs, merged_bbs, results, input, bbs
-            gc.collect()  # import gc
-            e = time.time()
-            print(f"Time of cleanup: {e-s:.2f} seconds")
 
             end = time.time()
             print(f"Time for this photo: {end - start:.2f} seconds")

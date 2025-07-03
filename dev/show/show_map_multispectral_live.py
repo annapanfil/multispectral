@@ -21,8 +21,6 @@ gps_topic = "/dji_osdk_ros/gps_position"
 gps_litter_topic = "/multispectral/pile_global_position"
 detection_image_topic = "/multispectral/detection_image"
 
-video1_path = "/assets/multispectral.mp4"
-video2_path = "/assets/hamburg_mapping.mp4"
 ws_ip = "127.0.0.0"
 
 app.layout = html.Div([

@@ -11,19 +11,20 @@ import queue
 import threading
 from src.shapes import Rectangle
 from src.utils import greedy_grouping, prepare_image
-from src.processing.load import align_from_saved_matrices, get_irradiance, load_all_warp_matrices, load_image_set
+from src.processing.load import align_from_saved_matrices, get_irradiance, get_panel_irradiance, load_all_warp_matrices, load_image_set
 from src.processing.consts import DATASET_BASE_PATH
 
 def main_processing(img_dir, bag_path, out_path, model_path, panel_img_nr, start_from, end_on):
     # Configuration (keep your original parameters)
     warp_matrices_dir = f"{DATASET_BASE_PATH}/annotated/warp_matrices"
     topic_name = "/camera/trigger"
-    fps = 3   # About 3 times faster than image acquisition
+    fps = 0.3   # About 3 times faster than image acquisition
     new_image_size = (800, 608)
-    formula = "(N - (E - N))"
+    formula = "(N - (E - N))"  #form8
+    # formula = "(4 - ((1 * 0) # (4 * 0)))" #form2
     channels = ["N", "G", formula]
     is_complex = len(formula) > 40
-    batch_size = 4 
+    batch_size = 1 # 4
     num_workers = 6 
 
     # Pre-load all warp matrices into memory
@@ -31,8 +32,8 @@ def main_processing(img_dir, bag_path, out_path, model_path, panel_img_nr, start
 
     # Initialize model with optimizations
     model = YOLO(model_path)
-    model.fuse() # Fuse Conv+BN layers
-    model.half()
+    # model.fuse() # Fuse Conv+BN layers
+    # model.half()
     model.conf = 0.5
 
     # Parallel processing pipeline
@@ -99,10 +100,13 @@ def process_image(msg, img_dir, panel_img_nr, warp_matrices, channels, new_image
 
     # Load and process image
     img_capt, panel_capt = load_image_set(img_dir + set_nr, img_nr, panel_img_nr, no_panchromatic=True)
-    img_type = get_irradiance(img_capt, panel_capt, display=False, vignetting=False)
+    panel_irradiance = get_panel_irradiance(panel_capt)
+    img_type = get_irradiance(img_capt, panel_capt, panel_irradiance, display=False, vignetting=False)
     img_aligned = align_from_saved_matrices(img_capt, img_type, warp_matrices, altitude, allow_closest=True, reference_band=0)
     image = prepare_image(img_aligned, channels, is_complex, new_image_size)
-    
+    image = image * 255
+    image = image.astype(np.uint8)
+
     return int(img_nr), image
 
 
@@ -117,7 +121,8 @@ def process_batch(batch, model, output_queue, future_map):
     
     # Batch prediction
     images = [img for _, img in sorted(results, key=lambda x: x[0])]
-    batch_results = model(images, augment=False, verbose=False)
+    print(images[0].shape, len(images))
+    batch_results = model(images, augment=False, verbose=False, imgsz=(800, 608))
     
     # Post-process and enqueue
     for (img_nr, _), results in zip(sorted(results, key=lambda x: x[0]), batch_results):
@@ -181,7 +186,7 @@ def main(img_dir, bag_path, out_path, model_path, panel, start, end):
     base_dir_raw = f"{DATASET_BASE_PATH}/raw_images/"
     base_dir_annotated = f"{DATASET_BASE_PATH}/annotated/"
     base_dir_out = f"{DATASET_BASE_PATH}/predicted_videos/"
-    n_images = main_processing(f"{base_dir_raw}/{img_dir}/images/" , base_dir_annotated + bag_path, base_dir_out + out_path, model_path, panel, start, end)
+    n_images = main_processing(f"{base_dir_raw}/{img_dir}/images/" , base_dir_raw + bag_path, base_dir_out + out_path, model_path, panel, start, end)
     print(f"Total execution time: {time.time() - start_time:.2f} seconds for {n_images} images")
 
 if __name__ == "__main__":

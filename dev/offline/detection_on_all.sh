@@ -19,3 +19,7 @@ python3 -m detect_on_all -i hamburg_2025_05_19 -b hamburg_mapping/bags/matriceBa
 python3 -m detect_on_all -i hamburg_2025_05_15 -b hamburg/bags/matriceBag_multispectral_2025-05-15-12-04-05.bag -o hamburg_yolo_form8.mp4 -p 0017 -s 46 -e 299
 
 python3 -m detect_on_all -i hamburg_2025_05_19 -b hamburg_mapping/bags/matriceBag_multispectral_2025-05-19-10-51-49.bag -o hamburg_test.mp4 -p 0000 -s 213 -e 216
+
+
+python3 -m dev.offline.detect_on_all -i hamburg_2025_05_19 -b hamburg_mapping/bags/matriceBag_multispectral_2025-05-19-10-51-49_THE_MAPPING.bag -o hamburg_mapping_mandrac-form8.mp4 -p 0000 -s 106 -e 482 -m models/mandrac_form8_random-sub_best.pt
+

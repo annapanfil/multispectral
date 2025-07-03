@@ -181,6 +181,18 @@ def load_image_set(
     
     return img_capt, panel_capt
 
+def get_panel_irradiance(panel_capt):
+    """ Get irradiance from the panel capture.
+
+    Args:
+        panel_capt (Capture): The panel capture object."""
+
+    if (albedo := panel_capt.panel_albedo()) is not None:
+        panel_reflectance_by_band = albedo
+    else:
+        panel_reflectance_by_band = [0.49, 0.49, 0.49, 0.49, 0.49] #RedEdge band_index order
+    return panel_capt.panel_irradiance(panel_reflectance_by_band)
+
 @timer
 def get_irradiance(img_capt, panel_capt, panel_irradiance, display=False, vignetting=True):
     """
@@ -189,6 +201,7 @@ def get_irradiance(img_capt, panel_capt, panel_irradiance, display=False, vignet
     Args:
         img_capt (Capture): The image capture.
         panel_capt (Capture): The panel capture.
+        panel_irradiance (list): List of irradiance values for each band from the panel capture.
         display (bool, optional): Whether to display the images. Defaults to False.
         vignetting (bool, optional): Whether to apply vignetting correction for reflectance. Defaults to True.
     

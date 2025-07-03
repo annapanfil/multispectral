@@ -30,7 +30,7 @@ def read_ground_truth(results):
                gt_classes.append(classes)
      return gt_boxes, gt_classes
 
-def show_gt_and_pred(results, gt_boxes, additional_boxes = [], n_cols=4, show_empty=True, gt_classes=None):
+def show_gt_and_pred(results, gt_boxes, additional_boxes = [], n_cols=4, show_empty=True, gt_classes=None, verb=True):
      if additional_boxes == []: additional_boxes = [[] for _ in range(len(results))]
      temp_images = []
 
@@ -42,7 +42,8 @@ def show_gt_and_pred(results, gt_boxes, additional_boxes = [], n_cols=4, show_em
      # Add annots to each image
      for result, gt, abb, gtc in zip(results, gt_boxes, additional_boxes, gt_classes):
           if show_empty == False and len(result.boxes) == 0 and len(gt) == 0 and len(abb) == 0:
-               print(f"No boxes present for {result.path}. Skipping...")
+               if verb:
+                    print(f"No boxes present for {result.path}. Skipping...")
                continue
           result.names[0] = ""
           img = result.plot(conf=True, line_width=1, font_size=5)
