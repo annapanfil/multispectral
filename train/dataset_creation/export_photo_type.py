@@ -1,6 +1,6 @@
 """Export aligned images in RGB and BReNir format for visual checking and further processing.
 
-You can run with multiple configs at once with python3 -m dataset_creation.export_photo_type --multirun processing="mandrac2025_5m,..."
+You can run with multiple configs at once with python3 -m train.dataset_creation.export_photo_type --multirun processing="mandrac2025_5m,..."
 The configs should be in the 'conf/processing' folder
 """
 
@@ -9,8 +9,8 @@ import hydra
 from pathlib import Path
 import numpy as np
 
-from dev.visualise import get_components_view, save_image, CHANNELS
-from src.processing.load import align_from_saved_matrices, align_iterative, get_altitude, load_image_set, get_irradiance, save_warp_matrices
+from dev.visualise import get_components_view, get_index_view, save_image, CHANNELS
+from src.processing.load import align_from_saved_matrices, align_iterative, get_altitude, get_panel_irradiance, load_aligned, load_image_set, get_irradiance, save_warp_matrices
 from src.processing.evaluate_index import get_custom_index
 
 def threshold_percentiles(image):
@@ -33,18 +33,21 @@ def main(cfg):
     # process images
     for i, image_nr in enumerate(image_numbers):
 
-        img_capt, panel_capt = load_image_set(
-            cfg.paths.images, image_nr, cfg.paths.panel_image_nr
-        )
+        im_aligned = load_aligned(cfg.paths.images, image_nr)
 
-        print(f"Aligning {len(img_capt.images)} images...")
+        # img_capt, panel_capt = load_image_set(
+        #     cfg.paths.images, image_nr, cfg.paths.panel_image_nr
+        # )
+
+        # print(f"Aligning {len(img_capt.images)} images...")
 
        
-        # align the image
+        # # align the image
         altitude = get_altitude(cfg, image_nr, i)
-        img_type = get_irradiance(img_capt, panel_capt, display=False)
+        # panel_irradiance = get_panel_irradiance(panel_capt)
+        # img_type = get_irradiance(img_capt, panel_capt, panel_irradiance, display=False, vignetting=False)
 
-        im_aligned = align_from_saved_matrices(img_capt, img_type, cfg.paths.warp_matrices, altitude, allow_closest=True, reference_band=0)
+        # im_aligned = align_from_saved_matrices(img_capt, img_type, cfg.paths.warp_matrices, altitude, allow_closest=True, reference_band=0)
         # im_aligned, warp_matrices = align_iterative(img_capt, img_type, reference_band=0)
         # save_warp_matrices(warp_matrices, f"{cfg.paths.warp_matrices}/warp_matrices_{altitude}.npy")
 
@@ -52,13 +55,16 @@ def main(cfg):
         filename = Path(cfg.paths.output, f"{image_nr}_{altitude}")
 
         RGB_image = get_components_view(im_aligned, (2,1,0))
-        save_image(RGB_image, f"{filename}_RGB.png")
+        # save_image(RGB_image, f"{filename}_RGB.jpg")
 
-        other_channels_image = get_components_view(im_aligned, (2,3,4))
-        save_image(other_channels_image, f"{filename}_234.png")
+        # other_channels_image = get_components_view(im_aligned, (2,3,4))
+        # save_image(other_channels_image, f"{filename}_234.png")
 
-        # NDWI_image = get_index_view(im_aligned, CHANNELS["NIR"], CHANNELS["G"])
-        # save_image(NDWI_image, f"{filename}_RNDWI.png", gray=True)
+        RNDWI_image = get_index_view(im_aligned, CHANNELS["N"], CHANNELS["G"])
+        # save_image(RNDWI_image, f"{filename}_RNDWI.png", gray=True)
+        
+        # form8_image = get_custom_index("((2*N)-E)", im_aligned) # SPI
+        # save_image(form8_image, f"{filename}_form8.png", gray=True)
 
         # mulRE_image = get_custom_index("1-((RE-G)/(RE+G) * (RE-B)/(RE+B))", im_aligned)
         # save_image(mulRE_image, f"{filename}_mulRE.png", gray=True)
@@ -68,6 +74,7 @@ def main(cfg):
 
         # CIR_image = get_components_view(im_aligned, (3,2,1))
         # save_image(CIR_image, f"{filename}_CIR.png")
+
 
         
 

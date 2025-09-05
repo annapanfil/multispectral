@@ -8,7 +8,7 @@ import os
 import hydra
 from pathlib import Path
 
-from src.processing.load import align_from_saved_matrices, get_altitude, load_image_set, get_irradiance
+from src.processing.load import align_from_saved_matrices, align_iterative, get_altitude, get_panel_irradiance, load_image_set, get_irradiance
 from dev.visualise import get_components_view, save_image, CHANNELS
 from src.processing.evaluate_index import get_custom_index
 import micasense.imageutils as imageutils
@@ -33,8 +33,8 @@ def main(cfg):
 
         # align the image
         altitude = get_altitude(cfg, image_nr, i)
-        img_type = get_irradiance(img_capt, panel_capt, display=False)
-
+        panel_irradiance = get_panel_irradiance(panel_capt)
+        img_type = get_irradiance(img_capt, panel_capt, panel_irradiance, display=False, vignetting=False)
         im_aligned = align_from_saved_matrices(img_capt, img_type, cfg.paths.warp_matrices, altitude, allow_closest=True, reference_band=0)
 
         # save channels and indexes

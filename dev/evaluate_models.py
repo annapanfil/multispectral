@@ -1,5 +1,3 @@
-%matplotlib inline
-
 from ultralytics import YOLO
 import os
 import yaml
@@ -14,7 +12,7 @@ sys.path.append("..")
 from dev.display import draw_yolo_boxes
 from src.processing.consts import DATASET_BASE_PATH
 from train.yolo import show_gt_and_pred, read_ground_truth
-from dev.utils import print_results_yolo, get_fp_fn_images, save_img_and_log
+from dev.utils import get_curves, get_metrics, print_results_yolo, get_fp_fn_images, save_img_and_log
 
 MODELS = { 
     "form8_sea":  "../models/sea-form8_sea_aug-random_best.pt",
@@ -64,12 +62,16 @@ DATASET_DUBROVNIK = {
 DATASETS = [DATASET_FORM8, DATASET_FORM8_INV, DATASET_FORM2]
 
 def change_labels(dataset_path, dir):
-    if os.path.exists(f"{dataset_path}/{dir}"):
-        !rm -rf {dataset_path}/labels
-        !ln -s {dataset_path}/{dir} {dataset_path}/labels
+    labels_dir = os.path.join(dataset_path, "labels")
+    new_labels_dir = os.path.join(dataset_path, dir)
+
+    if os.path.exists(new_labels_dir):
+        if os.path.islink(labels_dir) or os.path.exists(labels_dir):
+            os.unlink(labels_dir)
+        os.symlink(new_labels_dir, labels_dir)
         print(f"labels changed to {dir}")
     else:
-        print(f"labels directory {dataset_path}/{dir} does not exist, keeping old labels")
+        print(f"labels directory {new_labels_dir} does not exist, keeping old labels")
 
 def show_annotations(dataset_path, config_name, output_dir, filename, all_channels=False):
     for split in ("train", "val", "test"):
@@ -120,17 +122,18 @@ def show_annotations(dataset_path, config_name, output_dir, filename, all_channe
 # %%
 def save_images(pred_results, dataset, output_dir, title="", confidence=CONFIDENCE, show_empty=False):
     # save gt and pred images
-    fp_image, fn_image = get_fp_fn_images(pred_results, confidence)
+    fp_image, fn_image, tp_image = get_fp_fn_images(pred_results, confidence)
 
     change_labels(dataset['dataset_path'], TWO_CLASS_DIR)
     gt, classes = read_ground_truth(pred_results)
-    image = show_gt_and_pred(pred_results, gt, n_cols=3, gt_classes=classes, show_empty=show_empty, verb=False) #6
+    image = show_gt_and_pred(pred_results, gt, n_cols=6, gt_classes=classes, show_empty=show_empty, verb=False)
 
     save_img_and_log(image, f"{output_dir}/preds-gt_{title.replace(' ', '-')}_conf-{confidence:.2f}.jpg")
     save_img_and_log(fp_image, f"{output_dir}/fps_{title.replace(' ', '-')}_conf-{confidence:.2f}.jpg")
     save_img_and_log(fn_image, f"{output_dir}/fns_{title.replace(' ', '-')}_conf-{confidence:.2f}.jpg")
+    save_img_and_log(tp_image, f"{output_dir}/tps_{title.replace(' ', '-')}_conf-{confidence:.2f}.jpg")
 
-def evaluate_model(model_name, dataset, names=[], two_class=True, confidence=None, postfix="", our_litter_only=False, onnx=False, split="val"):
+def evaluate_model(model_name, dataset, names=[], two_class=True, confidence=0.42, postfix="", our_litter_only=False, onnx=False, split="val"):
     model = YOLO(MODELS[model_name])
     ds_path = dataset['dataset_path']
     output_dir = f"{OUT_PATH}/{model_name}_model{postfix}_results"
@@ -144,22 +147,31 @@ def evaluate_model(model_name, dataset, names=[], two_class=True, confidence=Non
         if two_class:
             change_labels(ds_path, label_dir)
 
-        val_results = model.val(data=f"{ds_path}/{dataset['config_name']}", plots=True, verbose=False, imgsz=(800, 608), split=split, iou_thres=0.5)
+        # val_results = model.val(data=f"{ds_path}/{dataset['config_name']}", plots=True, verbose=False, imgsz=(800, 608), split=split)
 
-        if not confidence:
-            # get optimal confidence threshold for the highest F1 score
-            opt_confidence = True
-            confidence_thresholds = val_results.curves_results[1][0]
-            f1_scores = val_results.curves_results[1][1]
-            optimal_idx = np.argmax(f1_scores)
-            confidence = confidence_thresholds[optimal_idx]
-            print(f"Optimal confidence threshold for {name} is {confidence:.2f}")
-        else:
-            opt_confidence = False
+        # if not confidence:
+        #     # get optimal confidence threshold for the highest F1 score
+        #     opt_confidence = True
+        #     confidence_thresholds = val_results.curves_results[1][0]
+        #     f1_scores = val_results.curves_results[1][1]
+        #     optimal_idx = np.argmax(f1_scores)
+        #     confidence = confidence_thresholds[optimal_idx]
+        #     print(f"Optimal confidence threshold for {name} is {confidence:.2f}")
+        # else:
+        #     opt_confidence = False
 
-        pred_results = model.predict(source=f"{ds_path}/images/{split}", save=False, conf=confidence, verbose=False, imgsz=(800, 608))
-        print_results_yolo(val_results, name, filename=f"{output_dir}/metrics_conf-{confidence:.2f}.txt", confidence=None if opt_confidence else confidence)
-        save_images(pred_results, dataset, output_dir, name, confidence=confidence, show_empty=True)
+        pred_results = model.predict(source=f"{ds_path}/images/{split}", save=False, conf=confidence, verbose=False, imgsz=(800, 608), iou=0.5)
+        precision, recall, f1 = get_metrics(pred_results, confidence=confidence, iou_threshold=0.5)
+        print(f"\nPrecision: {precision:.4f}\nRecall: {recall:.4f}\nF1: {f1:.4f}")
+        
+        # print_results_yolo(val_results, name, filename=f"{output_dir}/metrics_conf-{confidence:.2f}.txt", confidence=None if opt_confidence else confidence)
+        save_images(pred_results, dataset, output_dir, name, confidence=confidence, show_empty=False)
+
+        # curves_plot, ap50 = get_curves(model, f"{ds_path}/images/{split}", confidences=np.linspace(0,1,100), iou_threshold=0.5)
+        # curves_out = f"{output_dir}/curves_{name.replace(' ', '-')}_conf-{confidence:.2f}.jpg"
+        # curves_plot[0].savefig(curves_out)
+        # print(f"Curves saved to {curves_out}")
+        # print(f"Metrics at confidence {confidence:.2f}:\nAP50: {ap50:.4f}")
 
 #################################################################
 
@@ -386,9 +398,9 @@ if __name__ == "__main__":
     #     evaluate_model(model_name, DATASET_FORM2, ["all present litter", "only our litter", "only present litter"])   
 
     ### EVALUATE MODELS FOR THE PAPER
-    print(f"EVALUATING form8_mandrac on all mandrač datasets")
-    evaluate_model("form8_mandrac", DATASET_DUBROVNIK, two_class=False, names=["all present litter"], postfix="-dubrovnik-conf-0.42-iou0.5-own", split="test")
+    # print(f"EVALUATING form8_mandrac on all mandrač datasets")
+    evaluate_model("form8_mandrac", DATASET_DUBROVNIK, two_class=False, names=["all present litter"], postfix="-FINAL-dubrovnik-conf-0.42-iou-0.5", split="test")
 
     # print(f"EVALUATING form8_mandrac on Hamburg mapping dataset")
-    # evaluate_model("form8_mandrac", DATASET_FORM8, our_litter_only=True, postfix="-our-litter-conf-0.42", confidence=0.42)
+    # evaluate_model("form8_mandrac", DATASET_FORM8, our_litter_only=True, postfix="-FINAL-our-litter-conf-0.42", confidence=0.42)
 

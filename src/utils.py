@@ -57,7 +57,7 @@ def prepare_image(img_aligned: np.array, channels: List, is_complex: bool, new_s
 
     # return image.astype(np.float32) #[0, 1] range float32
 
-@timer
+# @timer
 def greedy_grouping(rectangles: List[Rectangle], image_shape: Tuple, resize_factor=1.5, visualize=False, confidences: List[float] = None) -> Tuple[List, np.array]:
     """
     Merge intersecting rectangles.
@@ -70,6 +70,7 @@ def greedy_grouping(rectangles: List[Rectangle], image_shape: Tuple, resize_fact
     Returns: tuple of
         merged_rectangles (list): List of merged rectangles.
         merged_rectangles_mask (np.array): Visualisation of the merged rectangles.
+        merged_confidences (list): List of confidences for the merged rectangles.
     """
     
     merged_mask = np.zeros(image_shape, dtype=np.uint8)

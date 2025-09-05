@@ -31,6 +31,9 @@ def read_ground_truth(results):
      return gt_boxes, gt_classes
 
 def show_gt_and_pred(results, gt_boxes, additional_boxes = [], n_cols=4, show_empty=True, gt_classes=None, verb=True):
+     if len(results) < n_cols:
+          n_cols = len(results)
+
      if additional_boxes == []: additional_boxes = [[] for _ in range(len(results))]
      temp_images = []
 

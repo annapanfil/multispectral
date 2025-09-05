@@ -54,10 +54,11 @@ def draw_rectangles(
 
     return image
 
-def draw_yolo_boxes(image_path, label_path, class_names, filter_class=-1, palette=[tuple(int(c * 255) for c in color) for color in plt.cm.tab20.colors], display=True):
+def draw_yolo_boxes(image_path, label_path, class_names, filter_class=-1, palette=[tuple(int(c * 255) for c in color) for color in plt.cm.tab20.colors], display=True, image=None):
     """ Draw bounding boxes in yolo format on image"""
-    image = cv2.imread(image_path)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    if image is None:
+        image = cv2.imread(image_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     image_height, image_width = image.shape[:2]
 
     annots = []
@@ -79,7 +80,6 @@ def draw_yolo_boxes(image_path, label_path, class_names, filter_class=-1, palett
             annots.append(Rectangle(x1, y1, x2, y2, class_names[class_id]))
             # Draw bounding box and label
             color = palette[class_id%20] if type(palette) is list else palette
-
             cv2.rectangle(image, (x1, y1), (x2,y2), color, 5)
             # cv2.putText(image, class_names[class_id], (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 2, color, 2)
 

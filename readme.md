@@ -47,6 +47,8 @@ python3 -m src.global_position_publisher    # determining GPS and ENU position
 
 Both nodes communicate via TCP connection on port 5000 of the ground computer. The IP address of the ground node must be changed in the `main_drone.py` file.
 
+the `src.main` can be run with `-d` flag to run without the attached camera, from the bagfile and photos on the drive.
+
 ### Web interface
 The web interface shows the map with a drone path and litter position and last detection image with bounding boxes around the litter.
 It may be useful for final visualisation as well as debugging. 
