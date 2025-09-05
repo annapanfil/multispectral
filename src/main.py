@@ -1,3 +1,4 @@
+#/home/lariat/miniforge3/envs/o nnx11/bin/python3
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
@@ -36,11 +37,37 @@ from typing import List
 
 current_altitude = 25
 
+
+def run_inference(image, session, input_name):
+    input = np.transpose(image, (2, 1, 0))
+    input = np.expand_dims(input, axis=0)
+    # Detection
+    print("Detecting litter...")
+    results = session.run(None, {input_name: input})
+    del input     
+    return results
+
+def print_time_stats(times_dict, warmup_count=2):
+    n = len(times_dict["total_time"])
+    if n <= warmup_count:
+        slice_start = 0
+    else:
+        slice_start = warmup_count
+
+    print("--------------------")
+    print(f"TIME STATISTICS (number of runs: {n})")
+
+    for key, times in times_dict.items():
+        if len(times) > slice_start:
+            subset = times[slice_start:]
+            print(f"{key} min: {min(subset)}, max: {max(subset)}, avg: {sum(subset)/len(subset)}")
+    print("--------------------")
+
+
 def position_callback(msg):
     global current_altitude
     current_altitude = msg.point.z
 
-@timer
 def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_pub, pos_pixel_pub):
     print(f"Sending outcomes for {group_key}")
     msg = Image()
@@ -74,6 +101,8 @@ def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_
             
             pos_pixel_pub.publish(msg)
             rospy.loginfo(f"Sent positions for {group_key} to rostopic")
+
+        #TODO: send GPS location from when the photo was taken (about 3s ago)
     else:
         rospy.logwarn("No pile detected. No positions to publish.")
         # rospy.logwarn("No pile detected. Reporting the image center") #TODO: delete
@@ -88,7 +117,8 @@ def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_
 
 @click.command()
 @click.option("--debug", '-d', is_flag=True, default=False, help="Run in debug mode with local images")
-def main(debug):
+@click.option("--times", '-t', is_flag=True, default=False, help="If to display the duration of each processing function")
+def main(debug, times):
     """Main function to capture images from UAV multispectral camera and detect litter."""
     rospy.init_node("UAV_multispectral_detector")
     rospy.loginfo("Node has been started")
@@ -146,13 +176,26 @@ def main(debug):
     original_image_size = (1456, 1088)
 
     warp_matrices_dir = f"{DATASET_BASE_PATH}/warp_matrices"
-    model_path = "/home/lariat/code/onnx/model_2.onnx"
+    # model_path = "/home/lariat/code/onnx/model_2.onnx"
+    model_path = "/home/lariat/code/multispectral/models/mandrac-hamburg_form8_random-sub_best.onnx"
     panel_path = f"{DATASET_BASE_PATH}/raw_images/temp_panel" # here is saved the panel image when src.get_panel is used
     panel_nr = "0000"
 
     ### INITIALIZATION
-    times = []
-    position_sub = rospy.Subscriber("/dji_osdk_ros/local_position", PointStamped, callback=position_callback)   
+    if times:
+        timers = {
+            "total_time": [],
+            "capture_from_filelist": [],
+            "get_irradiance": [],
+            "align_from_saved_matrices": [],
+            "prepare_image": [],
+            "model_inference": [],
+            "greedy_grouping": [],
+            "send_outcomes": [],
+            "cleanup": []
+        }
+
+    position_sub = rospy.Subscriber("/dji_osdk_ros/local_position", PointStamped, callback=position_callback)   # TODO: zmienić na PSDK
 
     print("Loading warp matrices and panel image...")
     warp_matrices = load_all_warp_matrices(warp_matrices_dir)
@@ -207,6 +250,18 @@ def main(debug):
         IMAGE_DIR = f"{DATASET_BASE_PATH}/raw_images/hamburg_2025_05_19/images/"
         TOPIC_NAME = "/camera/trigger"
         
+    # adding timing decorator to the functions
+    if times:
+        global get_irradiance, align_from_saved_matrices, prepare_image, run_inference, greedy_grouping, send_outcomes
+        create_capture = timer(timers, "capture_from_filelist")(capture.Capture.from_filelist)
+        get_irradiance = timer(timers, "get_irradiance")(get_irradiance)
+        align_from_saved_matrices = timer(timers, "align_from_saved_matrices")(align_from_saved_matrices)
+        prepare_image = timer(timers, "prepare_image")(prepare_image)
+        run_inference = timer(timers, "model_inference")(run_inference)
+        greedy_grouping = timer(timers, "greedy_grouping")(greedy_grouping)
+        send_outcomes = timer(timers, "send_outcomes")(send_outcomes)
+    else:
+        create_capture = capture.Capture.from_filelist
 
     ### MAIN LOOP
     try: 
@@ -220,7 +275,7 @@ def main(debug):
                 s = time.time()
                 try:
                     paths = img_queue.get(timeout=5.0)
-                except Queue.Empty:
+                except:
                     rospy.logwarn("Image queue timeout, no images received in 5 seconds. Retrying...")
                     continue
                 # paths = img_queue.get()  # 5s timeout timeout=5.0
@@ -230,6 +285,7 @@ def main(debug):
                 test_img = "/home/lariat/images/raw_images/hamburg_2025_05_19/images/0000SET/000/IMG_0172_1.tif"
                 paths = [test_img.replace("_1.tif", f"_{ch}.tif") for ch in range(1, 6)]
 
+                # from bagfiles and saved photos
                 # try:
                 #     s=time.time()
                 #     msg = rospy.wait_for_message(TOPIC_NAME, PointStamped, timeout=10)
@@ -240,76 +296,72 @@ def main(debug):
                 # except rospy.ROSException:
                 #     rospy.logwarn(f"No message received on topic {TOPIC_NAME} within 10s. Retrying...")
                 #     continue
-            # group_key = paths[0].rsplit("/", 1)[1].rsplit("_", 1)[0] # for logging purposes
+            group_key = paths[0].rsplit("/", 1)[1].rsplit("_", 1)[0] # for logging purposes
+            
             # Preprocessing
-            # print(f"Processing {group_key} with altitude {altitude:.0f} m")
-            # rospy.loginfo(f"Processing {group_key} with altitude {altitude:.0f} m")
-
+            print(f"Processing {group_key} with altitude {altitude:.0f} m")
+            rospy.loginfo(f"Processing {group_key} with altitude {altitude:.0f} m")
             
-            s = time.time()
-            img_capt = capture.Capture.from_filelist(paths)
-            e = time.time()
-            print(f"Time of Capture.from_filelist: {e-s:.2f} seconds")
-
+            img_capt = create_capture(paths)
             img_type = get_irradiance(img_capt, panel_capt, panel_irradiance, display=False, vignetting=False)
-
             img_aligned = align_from_saved_matrices(img_capt, img_type, warp_matrices, altitude, allow_closest=True, reference_band=0)
-
             image = prepare_image(img_aligned, channels, is_complex, new_image_size)
-            
-            s = time.time()
-            # Add batch dimension: (1, C, H, W)
-            input = np.transpose(image, (2, 1, 0))
-            input = np.expand_dims(input, axis=0)
-            
-            # Detection
-            print("Detecting litter...")
-            results = session.run(None, {input_name: input})
-            e = time.time()
-            print(f"Time of model inference: {e-s:.2f} seconds")
+            results = run_inference(image, session, input_name)
 
             bbs = []
             for pred_bbs in results[0]:
                 for bb in pred_bbs:
                     x1, y1, x2, y2, conf, cls = bb
                     # filter if needed: e.g., if conf > 0.5
-                    if conf > 0.5:
+                    if conf > 0.42:
                         rect = Rectangle(y1, x1, y2, x2, "rect")
                         bbs.append(rect)        
 
             # Merging
             print("Merging piles...")
             merged_bbs, _, _ = greedy_grouping(bbs, image.shape[:2], resize_factor=1.5, visualize=False)
-
+            
             image = (image * 255.0).astype(np.uint8)  # Convert to uint8
             for rect in merged_bbs:
                 rect.draw(image, color=(0, 255, 0), thickness=2)
             
             # Sending outcomes
-            group_key = "1234"
+            print(f"Found {len(merged_bbs)} litter piles in {group_key}")
             send_outcomes(merged_bbs, image, group_key, image_pub, pos_pixel_pub)
+            
+            # cleanup
+            s = time.time()
+            if not debug:
+                temp_dir = paths[0].rsplit("/", 1)[0]
+                print(f"Cleaning up temporary directory: {temp_dir}")
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+            del img_capt, img_aligned, image, pred_bbs, merged_bbs, results, bbs
+            gc.collect()
 
+            if times:
+                e = time.time()
+                print(f"Time of cleanup: {e-s:.2f} seconds")
+                timers["cleanup"].append(e - s)
+            
             end = time.time()
-            print(f"Time for this photo: {end - start:.2f} seconds")
-            # rospy.loginfo(f"Time for this photo: {end - start:.2f} seconds")
-            times.append(end - start)
+            rospy.loginfo(f"Time for this photo: {end - start:.2f} seconds")
+
+            if times:
+                timers["total_time"].append(end - start)
+                print_time_stats(timers)
+            
 
     except Exception as e:
         print(f"Error: {e}")
     finally:
-        # Cleanup when ROS shuts down
-        stop_event.set()
-        capture_proc.join(2.0)
-        if capture_proc.is_alive():
-            capture_proc.terminate()
+        if not debug:
+            # Cleanup when ROS shuts down
+            stop_event.set()
+            capture_proc.join(2.0)
+            if capture_proc.is_alive():
+                capture_proc.terminate()
     
-    if len(times) != 0:
-        print("TIME STATISTICS:")
-        print("--------------------")
-        print("min: {}, max: {}, avg: {}".format(min(times[1:]), max(times[1:]), sum(times[1:])/len(times[1:])))
-    else:
-        print("No images captured, time statistics not available.")
-
 
 if __name__ == "__main__":
     main()

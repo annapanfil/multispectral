@@ -10,7 +10,6 @@ from src.timeit import timer
 import micasense.imageutils as imageutils
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-@timer
 def prepare_image(img_aligned: np.array, channels: List, is_complex: bool, new_size: Tuple[int, int]) -> np.array:
     """ Get the correct channels for prediction and resize the image.
     Args:
@@ -57,7 +56,6 @@ def prepare_image(img_aligned: np.array, channels: List, is_complex: bool, new_s
 
     # return image.astype(np.float32) #[0, 1] range float32
 
-# @timer
 def greedy_grouping(rectangles: List[Rectangle], image_shape: Tuple, resize_factor=1.5, visualize=False, confidences: List[float] = None) -> Tuple[List, np.array]:
     """
     Merge intersecting rectangles.

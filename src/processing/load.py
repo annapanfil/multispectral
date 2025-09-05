@@ -7,7 +7,7 @@ import cv2
 from omegaconf import ListConfig
 from skimage.transform import ProjectiveTransform
 import concurrent.futures
-from ..timeit import timer
+
 
 import time
 def time_decorator(func):
@@ -407,7 +407,6 @@ def align_iterative(capture, img_type, reference_band = 5):
 
     return im_aligned, warp_matrices
 
-@timer
 def align_from_saved_matrices(capture, img_type: str, warp_matrices_dir: str, altitude: int, allow_closest=False, reference_band=5):
     #TODO: delete string possibility - kept for backward compatibility
     """

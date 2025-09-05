@@ -62,7 +62,6 @@ def capture_process(img_queue, stop_event, debug, url, params):
 
 
 
-@timer
 def get_image_from_camera(output_dir, img_cam_url_publisher, debug=False, url=None, params=None):
     """ Capture photo and download it. Save the image to disk and return the path""" 
     if debug:
