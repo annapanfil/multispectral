@@ -20,8 +20,6 @@ from src.processing.consts import DATASET_BASE_PATH
 from src.main_drone import capture_process #get_image_from_camera
 from src.timeit import timer
 
-# from src.main_ground import send_outcomes
-
 import micasense.capture as capture
 from src.processing.load import align_from_saved_matrices, find_images, get_irradiance, get_panel_irradiance, load_all_warp_matrices
 from src.processing.consts import DATASET_BASE_PATH
@@ -34,8 +32,10 @@ from multiprocessing import Process, Queue, Manager, Event #, LifoQueue
 import signal
 from typing import List
 
+from src.config import DEFAULT_ALTITUDE, LOCAL_POSITION_IN_TOPIC, PILE_PIXEL_POSITION_OUT_TOPIC, DETECTION_IMAGE_OUT_TOPIC, TRIGGER_OUT_TOPIC
 
-current_altitude = 25
+
+current_altitude = DEFAULT_ALTITUDE 
 
 
 def run_inference(image, session, input_name):
@@ -147,6 +147,7 @@ def main(debug, times):
         capture_proc.start()
 
         def signal_handler(sig, frame):
+            """ Handle SIGINT signal to gracefully stop the capture process and clean up temporary files."""
             print("\nStopping...")
             capture_proc.terminate()
             stop_event.set()
@@ -195,7 +196,7 @@ def main(debug, times):
             "cleanup": []
         }
 
-    position_sub = rospy.Subscriber("/dji_osdk_ros/local_position", PointStamped, callback=position_callback)   # TODO: zmienić na PSDK
+    position_sub = rospy.Subscriber(LOCAL_POSITION_IN_TOPIC, PointStamped, callback=position_callback)   # TODO: zmienić na PSDK
 
     print("Loading warp matrices and panel image...")
     warp_matrices = load_all_warp_matrices(warp_matrices_dir)
@@ -205,8 +206,8 @@ def main(debug, times):
     panel_irradiance = get_panel_irradiance(panel_capt)
 
     
-    pos_pixel_pub = rospy.Publisher("/multispectral/pile_pixel_position", PointStamped, queue_size=10)
-    image_pub = rospy.Publisher("/multispectral/detection_image", Image, queue_size=10)
+    pos_pixel_pub = rospy.Publisher(PILE_PIXEL_POSITION_OUT_TOPIC, PointStamped, queue_size=10)
+    image_pub = rospy.Publisher(DETECTION_IMAGE_OUT_TOPIC, Image, queue_size=10)
 
 
     print("Staring image proces")
@@ -248,7 +249,7 @@ def main(debug, times):
     else:
         # get image numbers from bag file
         IMAGE_DIR = f"{DATASET_BASE_PATH}/raw_images/hamburg_2025_05_19/images/"
-        TOPIC_NAME = "/camera/trigger"
+        TOPIC_NAME = TRIGGER_OUT_TOPIC
         
     # adding timing decorator to the functions
     if times:
@@ -282,6 +283,7 @@ def main(debug, times):
                 e = time.time()
                 print(f"Time of waiting for img in queue: {e-s:.2f}")
             else:
+                # get local images for debugging
                 test_img = "/home/lariat/images/raw_images/hamburg_2025_05_19/images/0000SET/000/IMG_0172_1.tif"
                 paths = [test_img.replace("_1.tif", f"_{ch}.tif") for ch in range(1, 6)]
 

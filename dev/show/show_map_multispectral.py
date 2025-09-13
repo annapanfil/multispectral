@@ -7,8 +7,9 @@ import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output, State
 import dash_leaflet as dl
+from src.config import GPS_POSITION_IN_TOPIC
 
-gps_topic_name = "/dji_osdk_ros/gps_position"
+gps_topic_name = GPS_POSITION_IN_TOPIC
 map_start = [53.470129, 9.984008] # Hamburg drone starting point
 latest_gps = {"lat": map_start[0], "lon": map_start[1]}
 video1_path = "/assets/multispectral.mp4"

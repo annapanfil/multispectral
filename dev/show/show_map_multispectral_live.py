@@ -9,6 +9,8 @@ from threading import Thread
 import json
 from websocket import WebSocketApp
 
+from src.config import GPS_POSITION_IN_TOPIC, PILE_GLOBAL_POSITION_OUT_TOPIC, DETECTION_IMAGE_OUT_TOPIC
+
 app = dash.Dash(__name__)
 
 # Globals to store latest GPS data and paths
@@ -17,9 +19,9 @@ gps_path = []
 litter_gps = []
 latest_img = None
 map_start = [53.470129, 9.984008] # Hamburg drone starting point
-gps_topic = "/dji_osdk_ros/gps_position"
-gps_litter_topic = "/multispectral/pile_global_position"
-detection_image_topic = "/multispectral/detection_image"
+gps_topic = GPS_POSITION_IN_TOPIC
+gps_litter_topic = PILE_GLOBAL_POSITION_OUT_TOPIC
+detection_image_topic = DETECTION_IMAGE_OUT_TOPIC
 
 ws_ip = "127.0.0.0"
 

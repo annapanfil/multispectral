@@ -4,6 +4,7 @@ import subprocess
 import requests
 import rospy
 from geometry_msgs.msg import PointStamped
+from src.config import TRIGGER_OUT_TOPIC, LOCAL_POSITION_IN_TOPIC
 
 
 """Fly to the to altitudes 30, 25, 20, 15, 10m above the ground in this sequence. You can be wrong by alt_err. On each altitude wait for at least 3 seconds.
@@ -43,8 +44,8 @@ if __name__ == "__main__":
         exit(1)
 
     rate = rospy.Rate(50)
-    position_sub = rospy.Subscriber("/dji_osdk_ros/local_position", PointStamped, callback=position_callback)   
-    trigger_pub = rospy.Publisher("/camera/trigger", PointStamped, queue_size=10)
+    position_sub = rospy.Subscriber(LOCAL_POSITION_IN_TOPIC, PointStamped, callback=position_callback)   
+    trigger_pub = rospy.Publisher(TRIGGER_OUT_TOPIC, PointStamped, queue_size=10)
     
     alt_idx = 0
     n_photos_taken = 0

@@ -6,6 +6,7 @@ import numpy as np
 import cv2
 import sys
 import src.gps_utils as gps_utils
+from src.config import RTK_POSITION_IN_TOPIC, ATTITUDE_IN_TOPIC, LOCAL_POSITION_IN_TOPIC, PILE_ENU_POSITION_OUT_TOPIC, PILE_GLOBAL_POSITION_OUT_TOPIC, PILE_PIXEL_POSITION_OUT_TOPIC
 from geometry_msgs.msg import Point,Vector3Stamped,PointStamped, QuaternionStamped
 from std_msgs.msg import Float64
 from sensor_msgs.msg import NavSatFix
@@ -171,8 +172,8 @@ class ObjectGlobalPositionPublisher:
         else:
             self.gimbal_sub = rospy.Subscriber(topics["gimbal"][0], topics["gimbal"][1], callback=self._gimbal_callback)
         #Pubs
-        self.global_pos_pub = rospy.Publisher("/multispectral/pile_global_position", NavSatFix,queue_size=30) # GPS coordinates of object
-        self.world_enu_pub = rospy.Publisher("/multispectral/pile_enu_position", PointStamped, queue_size=30) # ENU positions of object with respect to reference point
+        self.global_pos_pub = rospy.Publisher(PILE_GLOBAL_POSITION_OUT_TOPIC, NavSatFix,queue_size=30) # GPS coordinates of object
+        self.world_enu_pub = rospy.Publisher(PILE_ENU_POSITION_OUT_TOPIC, PointStamped, queue_size=30) # ENU positions of object with respect to reference point
         self._ned_to_enu = lambda ned: (ned[1], ned[0], -ned[2]) # converts ned to enu vector
         self.publish_constantly = publish_constantly # if true, will publish object position constantly, otherwise only when px_cord message arrives
 
@@ -339,10 +340,10 @@ if __name__=="__main__":
 
     topics = {
 		"gimbal" : ("gimbal", None),
-		"gps" : ("/dji_osdk_ros/rtk_position", NavSatFix),
-		"px_cord" : ("/multispectral/pile_pixel_position", PointStamped),
-        "height" : ("/dji_osdk_ros/local_position", PointStamped),
-        "attitude": ("/dji_osdk_ros/attitude", QuaternionStamped),
+		"gps" : (RTK_POSITION_IN_TOPIC, NavSatFix),
+		"px_cord" : (PILE_PIXEL_POSITION_OUT_TOPIC, PointStamped),
+        "height" : (LOCAL_POSITION_IN_TOPIC, PointStamped),
+        "attitude": (ATTITUDE_IN_TOPIC, QuaternionStamped),
 	} 
 
     glob_pub = ObjectGlobalPositionPublisher(camera_model, geo_ref_hamburg, topics, height_offset)

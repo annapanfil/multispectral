@@ -29,6 +29,7 @@ from src.utils import get_real_piles_size, greedy_grouping, prepare_image
 from src.processing.load import align_from_saved_matrices, find_images, get_irradiance, load_all_warp_matrices, load_image_set
 from src.processing.consts import CAM_HFOV, CAM_VFOV, DATASET_BASE_PATH
 from src.main import send_outcomes
+from src.config import DETECTION_IMAGE_OUT_TOPIC, PILE_PIXEL_POSITION_OUT_TOPIC
 
 import sys
 import micasense.capture as capture
@@ -176,8 +177,8 @@ def main():
     panel_names = find_images(Path(panel_path), panel_nr, panel=True, no_panchromatic=True)
     panel_capt = capture.Capture.from_filelist(panel_names)
     
-    pos_pixel_pub = rospy.Publisher("/multispectral/pile_pixel_position", PointStamped, queue_size=10)
-    image_pub = rospy.Publisher("/multispectral/detection_image", Image, queue_size=10)
+    pos_pixel_pub = rospy.Publisher(PILE_PIXEL_POSITION_OUT_TOPIC, PointStamped, queue_size=10)
+    image_pub = rospy.Publisher(DETECTION_IMAGE_OUT_TOPIC, Image, queue_size=10)
 
     decompressor = zstd.ZstdDecompressor() 
     executor = ThreadPoolExecutor(max_workers=16)

@@ -9,6 +9,7 @@ import yaml
 import rosbag # you have to init ros
 
 from src.processing.consts import DATASET_BASE_PATH
+from src.config import TRIGGER_OUT_TOPIC
 
 if __name__ == "__main__":
     # Configurations
@@ -53,7 +54,7 @@ if __name__ == "__main__":
     raw_images_path =f"{DATASET_BASE_PATH}/raw_images/hamburg_2025_05_15/"
     config_files_path = "conf/processing"
     channels_out_path = f"{DATASET_BASE_PATH}/for_annotation/{experiment_name}/"
-    topic_name = "/camera/trigger"
+    topic_name = TRIGGER_OUT_TOPIC
     tolerance = 2 # Tolerancja dla point.z
     heights = [5, 10, 15, 20, 25, 30] # Lista wysokości do sprawdzenia
     ##################

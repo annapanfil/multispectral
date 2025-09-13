@@ -14,6 +14,7 @@ import shutil
 import rospy
 from geometry_msgs.msg import PointStamped
 
+from src.config import TRIGGER_OUT_TOPIC, LOCAL_POSITION_IN_TOPIC
 # import rospy
 # import zstandard as zstd
 
@@ -36,7 +37,7 @@ def capture_process(img_queue, stop_event, debug, url, params):
     
     try:
         rospy.init_node('camera_capture_node', anonymous=True)
-        img_cam_url_publisher = rospy.Publisher("/camera/trigger", PointStamped, queue_size=10)
+        img_cam_url_publisher = rospy.Publisher(TRIGGER_OUT_TOPIC, PointStamped, queue_size=10)
 
         print("Capture process started")
         i = 0
@@ -86,7 +87,7 @@ def get_image_from_camera(output_dir, img_cam_url_publisher, debug=False, url=No
         trigger_msg.header.frame_id = img_name
 
         # TODO get position from drone    
-        # position_sub = rospy.Subscriber("/dji_osdk_ros/local_position", PointStamped, callback=position_callback)   
+        # position_sub = rospy.Subscriber(LOCAL_POSITION_IN_TOPIC, PointStamped, callback=position_callback)   
         trigger_msg.point.z = 25
 
         trigger_msg.header.stamp = rospy.Time.now()

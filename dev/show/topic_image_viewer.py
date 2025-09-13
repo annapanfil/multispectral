@@ -6,6 +6,7 @@ import cv2
 
 from src.main_ground import send_outcomes
 from src.shapes import Rectangle
+from src.config import DETECTION_IMAGE_OUT_TOPIC, PILE_PIXEL_POSITION_OUT_TOPIC
 from geometry_msgs.msg import PointStamped
 from sensor_msgs.msg import Image
 
@@ -58,10 +59,10 @@ if __name__ == "__main__":
     cv2.namedWindow("Image")
     cv2.resizeWindow("Image", window_size[0], window_size[1])
     cv2.setMouseCallback("Image", draw_rect)
-    rospy.Subscriber('/multispectral/detection_image', Image, image_callback)
+    rospy.Subscriber(DETECTION_IMAGE_OUT_TOPIC, Image, image_callback)
 
-    pos_pixel_pub = rospy.Publisher("/multispectral/pile_pixel_position", PointStamped, queue_size=10)
-    image_pub = rospy.Publisher("/multispectral/detection_image", Image, queue_size=10)
+    pos_pixel_pub = rospy.Publisher(PILE_PIXEL_POSITION_OUT_TOPIC, PointStamped, queue_size=10)
+    image_pub = rospy.Publisher(DETECTION_IMAGE_OUT_TOPIC, Image, queue_size=10)
 
     rate = rospy.Rate(30)
     while not rospy.is_shutdown():
