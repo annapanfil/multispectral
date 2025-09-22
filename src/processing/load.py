@@ -193,7 +193,6 @@ def get_panel_irradiance(panel_capt):
         panel_reflectance_by_band = [0.49, 0.49, 0.49, 0.49, 0.49] #RedEdge band_index order
     return panel_capt.panel_irradiance(panel_reflectance_by_band)
 
-@timer
 def get_irradiance(img_capt, panel_capt, panel_irradiance, display=False, vignetting=True):
     """
     Get irradiance and image type and display.

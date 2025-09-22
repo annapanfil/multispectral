@@ -11,7 +11,7 @@ from src.config import TRIGGER_OUT_TOPIC, LOCAL_POSITION_IN_TOPIC
 
 """Capture the images on the current altitude."""
 
-current_altitude = 0
+current_altitude = 15
 printing_idx = 0
 
 def position_callback(msg):

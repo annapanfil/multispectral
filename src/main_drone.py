@@ -12,9 +12,10 @@ import requests
 from src.timeit import timer
 import shutil
 import rospy
-from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import PointStamped, QuaternionStamped
 
-from src.config import TRIGGER_OUT_TOPIC, LOCAL_POSITION_IN_TOPIC
+
+from src.config import TRIGGER_OUT_TOPIC, LOCAL_POSITION_IN_TOPIC, DEFAULT_ALTITUDE, ATTITUDE_IN_TOPIC
 # import rospy
 # import zstandard as zstd
 
@@ -32,6 +33,13 @@ def almost_equal(a, b, epsilon):
     return abs(a - b) <= epsilon
 
 
+class ImageInfo:
+    def __init__(self, paths, rtk_position, local_position, attitude):
+        self.paths = paths
+        self.rtk_position = rtk_position
+        self.local_position = local_position
+        self.attitude = attitude
+
 def capture_process(img_queue, stop_event, debug, url, params):
     """Continuous process to capture images and add paths to queue."""
     
@@ -39,7 +47,7 @@ def capture_process(img_queue, stop_event, debug, url, params):
         rospy.init_node('camera_capture_node', anonymous=True)
         img_cam_url_publisher = rospy.Publisher(TRIGGER_OUT_TOPIC, PointStamped, queue_size=10)
 
-        print("Capture process started")
+        rospy.loginfo("Capture process started")
         i = 0
         while not stop_event.is_set():
             # check if image was alredy consumed by main process
@@ -49,17 +57,28 @@ def capture_process(img_queue, stop_event, debug, url, params):
                 os.makedirs(output_dir, exist_ok=True)
                 i+=1
                 paths = get_image_from_camera(output_dir, img_cam_url_publisher, debug, url, params)
-                
-                # Put the new image in the queue
-                img_queue.put(paths)
-                print(f"Captured {len(paths)} images.")
+                # get position (should be in 50Hz so 20ms)
+                try:
+                    rtk_msg = rospy.wait_for_message(LOCAL_POSITION_IN_TOPIC, PointStamped, timeout=1)
+                    local_pos_msg = rospy.wait_for_message(LOCAL_POSITION_IN_TOPIC, PointStamped, timeout=1)
+                    attitude_msg = rospy.wait_for_message(ATTITUDE_IN_TOPIC, QuaternionStamped, timeout=1)
+                except rospy.exceptions.ROSException:
+                    rospy.logwarn("No connection to PSDK, not resending position information")
+                    rtk_msg = None
+                    local_pos_msg = None
+                    attitude_msg = None
+
+                # Put the new image with the info in the queue
+                img_queue.put(ImageInfo(paths, rtk_msg, local_pos_msg, attitude_msg))
+                group_key = paths[0].rsplit("/", 2)[1]
+                rospy.loginfo(f"Captured {len(paths)} images as {group_key}.")
     
     #end of process 
     except KeyboardInterrupt:
         pass  # Let main process handle termination
     finally:
         if debug:
-            print("Capture process exiting")
+            rospy.loginfo("Capture process exiting")
 
 
 
@@ -75,20 +94,22 @@ def get_image_from_camera(output_dir, img_cam_url_publisher, debug=False, url=No
 
     # Trigger capture
     with requests.Session() as session:
-        response = session.get(url, params=params)
+        try:
+            response = session.get(url, params=params)
+        except requests.exceptions.ConnectionError:
+            raise RuntimeError("Failed to connect to the camera")
         data = response.json()
     
         if data.get('status') != 'complete':
             raise RuntimeError(f"Capture failed: {data}")
-        
-        # Sand path of the photo on camera storage to ROS topic for bagfile recording 
-        img_name = data.get("raw_storage_path").get("1") # name of channel 1 image
-        trigger_msg=PointStamped()
+
+        # Send path of the photo on camera storage to ROS topic for bagfile recording
+        img_name = data.get("raw_storage_path").get("1")  # name of channel 1 image
+        trigger_msg = PointStamped()
         trigger_msg.header.frame_id = img_name
 
         # TODO get position from drone    
-        # position_sub = rospy.Subscriber(LOCAL_POSITION_IN_TOPIC, PointStamped, callback=position_callback)   
-        trigger_msg.point.z = 25
+        trigger_msg.point.z = DEFAULT_ALTITUDE
 
         trigger_msg.header.stamp = rospy.Time.now()
         img_cam_url_publisher.publish(trigger_msg)

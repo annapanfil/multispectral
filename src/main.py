@@ -11,14 +11,15 @@ import rospy
 
 import click
 import rospy
-from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import PointStamped, QuaternionStamped
 from sensor_msgs.msg import Image
 import exiftool
 import onnxruntime as ort
 import numpy as np
 from src.processing.consts import DATASET_BASE_PATH
-from src.main_drone import capture_process #get_image_from_camera
+from src.main_drone import capture_process, ImageInfo #get_image_from_camera
 from src.timeit import timer
+from src.config import DEFAULT_ALTITUDE, LOCAL_POSITION_IN_TOPIC, PILE_PIXEL_POSITION_OUT_TOPIC, DETECTION_IMAGE_OUT_TOPIC, TRIGGER_OUT_TOPIC, LAST_PHOTO_RTK_POSITION_OUT_TOPIC, LAST_PHOTO_LOCAL_POSITION_OUT_TOPIC, LAST_PHOTO_ATTITUDE_OUT_TOPIC
 
 import micasense.capture as capture
 from src.processing.load import align_from_saved_matrices, find_images, get_irradiance, get_panel_irradiance, load_all_warp_matrices
@@ -32,17 +33,14 @@ from multiprocessing import Process, Queue, Manager, Event #, LifoQueue
 import signal
 from typing import List
 
-from src.config import DEFAULT_ALTITUDE, LOCAL_POSITION_IN_TOPIC, PILE_PIXEL_POSITION_OUT_TOPIC, DETECTION_IMAGE_OUT_TOPIC, TRIGGER_OUT_TOPIC
-
 
 current_altitude = DEFAULT_ALTITUDE 
-
 
 def run_inference(image, session, input_name):
     input = np.transpose(image, (2, 1, 0))
     input = np.expand_dims(input, axis=0)
     # Detection
-    print("Detecting litter...")
+    rospy.loginfo("Detecting litter...")
     results = session.run(None, {input_name: input})
     del input     
     return results
@@ -68,8 +66,10 @@ def position_callback(msg):
     global current_altitude
     current_altitude = msg.point.z
 
-def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_pub, pos_pixel_pub):
-    print(f"Sending outcomes for {group_key}")
+def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, publishers: dict, img_info: ImageInfo):
+    rospy.loginfo(f"Sending outcomes for {group_key}")
+    
+    # image
     msg = Image()
     msg.header.stamp = rospy.Time.now()
     msg.header.frame_id = group_key
@@ -80,13 +80,13 @@ def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_
     msg.step = img.shape[1] * 3
     msg.data = img.tobytes()
 
-    image_pub.publish(msg)
+    publishers["image_pub"].publish(msg)
 
     # cv2.imwrite(f'../out/processed/{group_key}.jpg', img)
     original_image_size = (1456, 1088)
     new_image_size = (800, 608)
 
-
+    # positions in pixels
     if len(bboxes) > 0:
         for i, bb in enumerate(bboxes):
             msg = PointStamped()
@@ -99,10 +99,15 @@ def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_
             msg.point.x = cx
             msg.point.y = cy
             
-            pos_pixel_pub.publish(msg)
+            publishers["pos_pixel_pub"].publish(msg)
             rospy.loginfo(f"Sent positions for {group_key} to rostopic")
+            
+            # positions in GPS and ENU
+            if img_info is not None and img_info.rtk_position is not None:
+                publishers["photo_rtk_pub"].publish(img_info.rtk_position)
+                publishers["photo_local_pos_pub"].publish(img_info.local_position)
+                publishers["photo_att_pub"].publish(img_info.attitude)
 
-        #TODO: send GPS location from when the photo was taken (about 3s ago)
     else:
         rospy.logwarn("No pile detected. No positions to publish.")
         # rospy.logwarn("No pile detected. Reporting the image center") #TODO: delete
@@ -120,17 +125,44 @@ def send_outcomes(bboxes: List[Rectangle], img: np.array, group_key: str, image_
 @click.option("--times", '-t', is_flag=True, default=False, help="If to display the duration of each processing function")
 def main(debug, times):
     """Main function to capture images from UAV multispectral camera and detect litter."""
-    rospy.init_node("UAV_multispectral_detector")
-    rospy.loginfo("Node has been started")
-    print("Starting UAV multispectral litter detection...")
     
+    ### CONFIGURATION
+    formula = "(N - (E - N))"
+    channels = ["N", "G", formula]
+    # channels = ["R", "G", "B"]
+    is_complex = False
+    new_image_size = (800, 608)
+    original_image_size = (1456, 1088)
+
+    warp_matrices_dir = f"{DATASET_BASE_PATH}/warp_matrices"
+    model_path = "/home/lariat/code/multispectral/models/mandrac-hamburg_form8_random-sub_best.onnx"
+    panel_path = f"{DATASET_BASE_PATH}/raw_images/temp_panel" # here is saved the panel image when src.get_panel is used
+    panel_nr = "0000"
+
+    if debug:
+        # get image numbers from bag file
+        IMAGE_DIR = f"{DATASET_BASE_PATH}/raw_images/hamburg_2025_05_19/images/"
+        TOPIC_NAME = TRIGGER_OUT_TOPIC
+
+    ##########################################3
+
     # Use all 4 CPUs for cv2
     cv2.setUseOptimized(True)
     cv2.setNumThreads(4)
 
     if not debug:
-        print("Staring image proces")
-        img_queue = Queue(maxsize=1)  # Limit to 1 sets of images, we want the newest made photo eny way
+        print("Testing camera connection...")
+        try:
+            output = subprocess.check_output(["ping", "-c", "1", "192.168.1.83"], stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError:
+            print("[ERROR] Failed to ping the camera")
+            exit(1)
+
+
+    if not debug:
+        # INIT IMAGE CAPTURE PROCESS
+        print("Starting image proces")
+        img_queue = Queue(maxsize=1)  # Limit to 1 image, we want the newest made photo anyway
         stop_event = Manager().Event()
         url = "http://192.168.1.83/capture"
         params = {
@@ -156,7 +188,8 @@ def main(debug, times):
                 print("Terminating capture process...")
                 capture_proc.terminate()
             if img_queue.full():
-                old_paths = img_queue.get_nowait()
+                img_info = img_queue.get_nowait()
+                old_paths = img_info.paths
                 temp_dir = old_paths[0].rsplit("/", 1)[0]
                 if os.path.exists(temp_dir):
                     print(f"Cleaning up temporary directory: {temp_dir}")
@@ -165,24 +198,10 @@ def main(debug, times):
 
         signal.signal(signal.SIGINT, signal_handler)
 
+    # INIT MAIN NODE
     rospy.init_node("UAV_multispectral_detector")
-    rospy.loginfo("Node has been started")
+    rospy.loginfo("Main node started")
 
-    ### CONFIGURATION
-    formula = "(N - (E - N))"
-    channels = ["N", "G", formula]
-    # channels = ["R", "G", "B"]
-    is_complex = False
-    new_image_size = (800, 608)
-    original_image_size = (1456, 1088)
-
-    warp_matrices_dir = f"{DATASET_BASE_PATH}/warp_matrices"
-    # model_path = "/home/lariat/code/onnx/model_2.onnx"
-    model_path = "/home/lariat/code/multispectral/models/mandrac-hamburg_form8_random-sub_best.onnx"
-    panel_path = f"{DATASET_BASE_PATH}/raw_images/temp_panel" # here is saved the panel image when src.get_panel is used
-    panel_nr = "0000"
-
-    ### INITIALIZATION
     if times:
         timers = {
             "total_time": [],
@@ -196,61 +215,32 @@ def main(debug, times):
             "cleanup": []
         }
 
-    position_sub = rospy.Subscriber(LOCAL_POSITION_IN_TOPIC, PointStamped, callback=position_callback)   # TODO: zmienić na PSDK
+    position_sub = rospy.Subscriber(LOCAL_POSITION_IN_TOPIC, PointStamped, callback=position_callback)
 
-    print("Loading warp matrices and panel image...")
+    rospy.loginfo("Loading warp matrices and panel image...")
     warp_matrices = load_all_warp_matrices(warp_matrices_dir)
-    panel_names = find_images(Path(panel_path), panel_nr, panel=True, no_panchromatic=True)
-    panel_capt = capture.Capture.from_filelist(panel_names)
+    try:
+        panel_names = find_images(Path(panel_path), panel_nr, panel=True, no_panchromatic=True)
+        panel_capt = capture.Capture.from_filelist(panel_names)
+    except ValueError as e:
+        rospy.logerr(f"Make sure the panel image in {panel_path} is correct ({e})")
+        raise(e)
 
     panel_irradiance = get_panel_irradiance(panel_capt)
 
-    
-    pos_pixel_pub = rospy.Publisher(PILE_PIXEL_POSITION_OUT_TOPIC, PointStamped, queue_size=10)
-    image_pub = rospy.Publisher(DETECTION_IMAGE_OUT_TOPIC, Image, queue_size=10)
-
-
-    print("Staring image proces")
-    img_queue = Queue(maxsize=1)  # Limit to 1 sets of images, we want the newest made photo eny way
-    stop_event = Manager().Event()
-    url = "http://192.168.1.83/capture"
-    params = {
-        'block': 'true',
-        'cache_raw': 31,   # All 5 bands (binary 11111)
-        'store_capture': 'false',  # Skip SD card write
-        'preview': 'false',
-        'cache_jpeg': 0
+    rospy.loginfo("Registering publishers...")
+    publishers = {
+        "pos_pixel_pub":       rospy.Publisher(PILE_PIXEL_POSITION_OUT_TOPIC, PointStamped, queue_size=10),
+        "image_pub":           rospy.Publisher(DETECTION_IMAGE_OUT_TOPIC, Image, queue_size=10),
+        "photo_rtk_pub":       rospy.Publisher(LAST_PHOTO_RTK_POSITION_OUT_TOPIC, PointStamped, queue_size=10),
+        "photo_local_pos_pub": rospy.Publisher(LAST_PHOTO_LOCAL_POSITION_OUT_TOPIC, PointStamped, queue_size=10),
+        "photo_att_pub":       rospy.Publisher(LAST_PHOTO_ATTITUDE_OUT_TOPIC, QuaternionStamped, queue_size=10)
     }
-    capture_proc = Process(target=capture_process, args=(img_queue, stop_event, debug, url, params))
-    capture_proc.daemon = True  # Terminate with main process
-    capture_proc.start()
 
-    def signal_handler(sig, frame):
-        print("\nStopping...")
-        capture_proc.terminate()
-        capture_proc.join(timeout=1.0)
-        sys.exit(0)
-        #TODO dodac czyszczenie 
-    signal.signal(signal.SIGINT, signal_handler)
-
-
-    print("Loading model...")
+    rospy.loginfo("Loading model...")
     session = ort.InferenceSession(model_path, providers=['CUDAExecutionProvider'])
     input_name = session.get_inputs()[0].name
-
-    if not debug:
-        # print("Testing camera connection...")
-        rospy.loginfo("Testing camera connection...")
-        try:
-            output = subprocess.check_output(["ping", "-c", "1", "192.168.1.83"], stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError:
-            rospy.logerr("Failed to ping the camera")
-            exit(1)
-    else:
-        # get image numbers from bag file
-        IMAGE_DIR = f"{DATASET_BASE_PATH}/raw_images/hamburg_2025_05_19/images/"
-        TOPIC_NAME = TRIGGER_OUT_TOPIC
-        
+    
     # adding timing decorator to the functions
     if times:
         global get_irradiance, align_from_saved_matrices, prepare_image, run_inference, greedy_grouping, send_outcomes
@@ -272,20 +262,21 @@ def main(debug, times):
             altitude = current_altitude
 
             if not debug:
-                #get image from subprocess queue
+                # get image from subprocess queue
                 s = time.time()
                 try:
-                    paths = img_queue.get(timeout=5.0)
+                    img_info = img_queue.get(timeout=5.0)
+                    paths = img_info.paths
                 except:
                     rospy.logwarn("Image queue timeout, no images received in 5 seconds. Retrying...")
                     continue
-                # paths = img_queue.get()  # 5s timeout timeout=5.0
                 e = time.time()
-                print(f"Time of waiting for img in queue: {e-s:.2f}")
+                rospy.loginfo(f"Got an image. Waited for: {e-s:.2f}")
             else:
                 # get local images for debugging
                 test_img = "/home/lariat/images/raw_images/hamburg_2025_05_19/images/0000SET/000/IMG_0172_1.tif"
                 paths = [test_img.replace("_1.tif", f"_{ch}.tif") for ch in range(1, 6)]
+                img_info = None
 
                 # from bagfiles and saved photos
                 # try:
@@ -298,10 +289,10 @@ def main(debug, times):
                 # except rospy.ROSException:
                 #     rospy.logwarn(f"No message received on topic {TOPIC_NAME} within 10s. Retrying...")
                 #     continue
-            group_key = paths[0].rsplit("/", 1)[1].rsplit("_", 1)[0] # for logging purposes
-            
+                
+            group_key = paths[0].rsplit("/", 2)[1] # for logging purposes
+
             # Preprocessing
-            print(f"Processing {group_key} with altitude {altitude:.0f} m")
             rospy.loginfo(f"Processing {group_key} with altitude {altitude:.0f} m")
             
             img_capt = create_capture(paths)
@@ -320,7 +311,7 @@ def main(debug, times):
                         bbs.append(rect)        
 
             # Merging
-            print("Merging piles...")
+            rospy.loginfo("Merging piles...")
             merged_bbs, _, _ = greedy_grouping(bbs, image.shape[:2], resize_factor=1.5, visualize=False)
             
             image = (image * 255.0).astype(np.uint8)  # Convert to uint8
@@ -328,17 +319,17 @@ def main(debug, times):
                 rect.draw(image, color=(0, 255, 0), thickness=2)
             
             # Sending outcomes
-            print(f"Found {len(merged_bbs)} litter piles in {group_key}")
-            send_outcomes(merged_bbs, image, group_key, image_pub, pos_pixel_pub)
+            rospy.loginfo(f"Found {len(merged_bbs)} litter piles in {group_key}")
+            send_outcomes(merged_bbs, image, group_key, publishers, img_info)
             
             # cleanup
             s = time.time()
             if not debug:
                 temp_dir = paths[0].rsplit("/", 1)[0]
-                print(f"Cleaning up temporary directory: {temp_dir}")
+                rospy.loginfo(f"Cleaning up temporary directory: {temp_dir}")
                 if os.path.exists(temp_dir):
                     shutil.rmtree(temp_dir)
-            del img_capt, img_aligned, image, pred_bbs, merged_bbs, results, bbs
+            del img_capt, img_aligned, image, pred_bbs, merged_bbs, results, bbs, img_info
             gc.collect()
 
             if times:

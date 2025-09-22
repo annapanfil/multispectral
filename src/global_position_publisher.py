@@ -6,7 +6,7 @@ import numpy as np
 import cv2
 import sys
 import src.gps_utils as gps_utils
-from src.config import RTK_POSITION_IN_TOPIC, ATTITUDE_IN_TOPIC, LOCAL_POSITION_IN_TOPIC, PILE_ENU_POSITION_OUT_TOPIC, PILE_GLOBAL_POSITION_OUT_TOPIC, PILE_PIXEL_POSITION_OUT_TOPIC
+from src.config import PILE_ENU_POSITION_OUT_TOPIC, PILE_GLOBAL_POSITION_OUT_TOPIC, PILE_PIXEL_POSITION_OUT_TOPIC, LAST_PHOTO_RTK_POSITION_OUT_TOPIC, LAST_PHOTO_LOCAL_POSITION_OUT_TOPIC, LAST_PHOTO_ATTITUDE_OUT_TOPIC
 from geometry_msgs.msg import Point,Vector3Stamped,PointStamped, QuaternionStamped
 from std_msgs.msg import Float64
 from sensor_msgs.msg import NavSatFix
@@ -340,10 +340,10 @@ if __name__=="__main__":
 
     topics = {
 		"gimbal" : ("gimbal", None),
-		"gps" : (RTK_POSITION_IN_TOPIC, NavSatFix),
+		"gps" : (LAST_PHOTO_RTK_POSITION_OUT_TOPIC, NavSatFix),
 		"px_cord" : (PILE_PIXEL_POSITION_OUT_TOPIC, PointStamped),
-        "height" : (LOCAL_POSITION_IN_TOPIC, PointStamped),
-        "attitude": (ATTITUDE_IN_TOPIC, QuaternionStamped),
+        "height" : (LAST_PHOTO_LOCAL_POSITION_OUT_TOPIC, PointStamped),
+        "attitude": (LAST_PHOTO_ATTITUDE_OUT_TOPIC, QuaternionStamped),
 	} 
 
     glob_pub = ObjectGlobalPositionPublisher(camera_model, geo_ref_hamburg, topics, height_offset)
